@@ -176,8 +176,8 @@ fn render() {
     println!("Rendering Time: {} Seconds", end);
 
     // Setup Piston Window and display image
-    let window:PistonWindow = WindowSettings::new("RustRay @Author:Stewart Charles", [DIM as u32,DIM as u32])
-        .exit_on_esc(true).build().unwrap();
+    let window:PistonWindow = WindowSettings::new("RustRay @Author:Stewart Charles",
+    [DIM as u32,DIM as u32]).exit_on_esc(true).build().unwrap();
 
     for e in window {
         e.draw_2d(|c,g| {
@@ -204,7 +204,9 @@ fn render() {
 
 /* This function will be used by a thread to Generate a section of the
    image being drawn. */
-fn thread_render(surfaces:Arc<Vec<Box<Surface>>>, xmin:i32, xmax:i32, ymin:i32, ymax:i32)->ImageQuad {
+fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
+    xmin:i32, xmax:i32, ymin:i32, ymax:i32) -> ImageQuad {
+
     let mut image = ImageQuad::new(xmin, xmax, ymin, ymax);
 
     let img_dim = 2.0 / (DIM as f64);
@@ -287,7 +289,9 @@ fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
 /// Casts a Reflection ray from the 'Point' in a direction that is calculated from the incoming
 /// view_dir and surface normal. If the maximum depth has been reached in computing rays, returns
 /// the background color for the scene.
-fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>, depth:i32, surfaces:&Arc<Vec<Box<Surface>>>)-> Vec3<f32> {
+fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>,
+    depth:i32, surfaces:&Arc<Vec<Box<Surface>>>) -> Vec3<f32> {
+
     if depth == 0 { return BKG_COLOR;}
     let dot_n = 2.0 * na::dot(&view_dir, &normal);
     let dir = normal * dot_n;
@@ -357,7 +361,8 @@ struct Ray {
 /// and also calculates the Color for the point intersected on the Surface.
 trait Surface: Sync + Send {
     fn hit(&self, ray:&Ray)->Option<f64>;
-    fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>, t:f64, depth:i32)->Vec3<f32>;
+    fn calculate_color(&self, ray:&Ray,
+        surfaces:&Arc<Vec<Box<Surface>>>,t:f64, depth:i32)->Vec3<f32>;
 }
 
 #[derive(Copy,Clone)]
@@ -410,7 +415,9 @@ impl Surface for Sphere {
         }
     }
 
-    fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>, t:f64, depth:i32)->Vec3<f32> {
+    fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
+        t:f64, depth:i32) -> Vec3<f32> {
+
         if depth == 0 { return self.material.amb; }
         let dir_ammt = ray.dir * (t - EPSILON);
         let point = ray.src + dir_ammt;
@@ -437,7 +444,8 @@ impl Surface for Sphere {
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
-            mat = mix(mat, reflect(point, ray.dir, normal, depth - 1, surfaces), self.material.reflect);
+            mat = mix(mat, reflect(point, ray.dir, normal, depth - 1, surfaces),
+            self.material.reflect);
         }
         mat
     }
@@ -529,7 +537,9 @@ impl Surface for Triangle {
         }
     }
 
-    fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>, t:f64, depth:i32)->Vec3<f32> {
+    fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
+        t:f64, depth:i32) -> Vec3<f32> {
+
         if depth == 0 { return self.material.amb; }
         let dir_ammt = ray.dir * (t - EPSILON);
         let point = ray.src + dir_ammt;
@@ -564,7 +574,8 @@ impl Surface for Triangle {
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
-            mat = mix(mat, reflect(point, ray.dir,normal, depth - 1, surfaces), self.material.reflect);
+            mat = mix(mat, reflect(point, ray.dir,normal, depth - 1, surfaces),
+            self.material.reflect);
         }
         mat
     }
