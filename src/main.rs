@@ -21,11 +21,11 @@ type D = Vec3<f64>;
 const MAX_DEPTH:i32 = 5;
 const NEAR:f64 = 1.2;
 const EPSILON:f64 = 1.0 / 1000000.0;
-const DIM:i32 = 1024;
+const DIM:i32 = 800;
 const TNEAR:f64 = 0.0;
 const TFAR:f64 = 10000000.0;
 
-const BKG_COLOR:F = Vec3{x:0.6f32,y:0.0f32,z:0.6f32};
+const BKG_COLOR:F = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:D = Vec3{x:0.0f64,y:1.0f64,z:0.0f64};
 const LIGHT_POS:D = Vec3{x:3.0f64,y:4.0f64,z:-1.0f64};
 
@@ -53,6 +53,7 @@ fn main() {
                  EYE = Vec3::new(f64::from_str(&args[1]).unwrap(),
                  f64::from_str(&args[2]).unwrap(),
                  f64::from_str(&args[3]).unwrap());
+
                  LOOK = Vec3::new(f64::from_str(&args[4]).unwrap(),
                  f64::from_str(&args[5]).unwrap(),
                  f64::from_str(&args[6]).unwrap());
@@ -62,7 +63,7 @@ fn main() {
                  f64::from_str(&args[2]).unwrap(),
                  f64::from_str(&args[3]).unwrap());
              },
-             _ => { },
+             _ => { /* Do Nothing by default*/  },
          }
      }
 
@@ -78,7 +79,7 @@ fn render() {
 
     // Setup Materials
     let blue = Material{amb:Vec3::new(0.0,0.0,1.0), reflect:0.0};
-    let green = Material{amb:Vec3::new(0.0,1.0,0.0), reflect:0.25};
+    let green = Material{amb:Vec3::new(0.0,1.0,0.0), reflect:0.35};
     let red = Material{amb:Vec3::new(1.0,0.0,0.0), reflect:0.0};
     let mirror = Material{amb:Vec3::new(0.15,0.15,0.15), reflect:0.8};
     let floor_mat = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.0};
@@ -149,7 +150,7 @@ fn render() {
         W = na::cross(&U, &V).normalize();
     }
 
-    let start = time::precise_time_s();
+    let mut start = time::precise_time_s();
 
     // Run Threads that operate on disjoint image Quads
     let a_thread = thread::spawn(move || {
@@ -175,12 +176,16 @@ fn render() {
     quads.push(c_thread.join().unwrap());
     quads.push(d_thread.join().unwrap());
 
-    let end = time::precise_time_s() - start;
+    let mut end = time::precise_time_s() - start;
     println!("Rendering Time: {} Seconds", end);
+
+    start = time::precise_time_s();
 
     // Setup Piston Window and display image
     let window:PistonWindow = WindowSettings::new("RustRay @Author:Stewart Charles",
     [DIM as u32,DIM as u32]).exit_on_esc(true).build().unwrap();
+
+    let mut first = true;
 
     for e in window {
         e.draw_2d(|c,g| {
@@ -197,10 +202,15 @@ fn render() {
                     }
                 }
             }
+            if first {
+                end = time::precise_time_s() - start;
+                println!("Piston Window Draw Time: {} Seconds", end);
+                first = false;
+            }
         });
     }
 
-    println!("Done");
+    println!("Program Finished");
     // Create Piston window. Draw final image from img array;
 
 }
