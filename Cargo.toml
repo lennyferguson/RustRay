@@ -1,0 +1,9 @@
+[package]
+name = "rust_ray"
+version = "0.1.0"
+authors = ["Stewart Charles <trio.of.four@gmail.com>"]
+
+[dependencies]
+piston_window = "0.32.0"
+nalgebra = "*"
+time = "0.1"
