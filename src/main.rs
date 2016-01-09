@@ -229,6 +229,9 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>, xmin:i32, xmax:i32, ymin:i32, 
                 dir = (s - EYE).normalize();
                 view_ray = Ray{src:EYE, dir:dir};
             }
+
+            // For each Surface, test for intersection with View Ray
+            // Track surface nearest to Viewer with near_t scalar
             let mut near_surf:Option<&Box<Surface>> = None;
             let mut near_t = TFAR;
 
@@ -244,6 +247,9 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>, xmin:i32, xmax:i32, ymin:i32, 
                     None => { },
                 }
             }
+
+            // If we have a surface at this point, it is a surface that is nearest to the Eye
+            // and can now be used to calculate a color. Otherwise, we push the bkg_color
             match near_surf {
                 Some(surf) => {
                     let color = surf.calculate_color(&view_ray,&surfaces, near_t, MAX_DEPTH - 1);
