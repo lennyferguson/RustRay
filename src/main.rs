@@ -48,23 +48,31 @@ fn main() {
      // if they exist. Otherwise, default to initial values
      let args:Vec<String> = env::args().collect();
      unsafe {
-         match args.len() {
-             7 => {
-                 EYE = Vec3::new(f64::from_str(&args[1]).unwrap(),
-                 f64::from_str(&args[2]).unwrap(),
-                 f64::from_str(&args[3]).unwrap());
-
-                 LOOK = Vec3::new(f64::from_str(&args[4]).unwrap(),
-                 f64::from_str(&args[5]).unwrap(),
-                 f64::from_str(&args[6]).unwrap());
-             },
-             4 => {
-                 EYE = Vec3::new(f64::from_str(&args[1]).unwrap(),
-                 f64::from_str(&args[2]).unwrap(),
-                 f64::from_str(&args[3]).unwrap());
-             },
-             _ => { /* Do Nothing by default*/  },
+         let mut unwrap:Vec<f64> = Vec::new();
+         let mut error = false;
+         for x in 1..args.len() {
+             let parse = f64::from_str(&args[x]);
+             match parse {
+                 Ok(num) => unwrap.push(num),
+                 Err(e) => {
+                     println!("Error Parsing Arg[{}] = ' {} '", x , e );
+                     error = true;
+                 },
+             }
          }
+         if !error {
+             match unwrap.len() {
+                 6 => {
+                     EYE = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
+                     LOOK = Vec3::new(unwrap[3], unwrap[4], unwrap[5]);
+                 },
+                 3 => {
+                     EYE = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
+                 },
+                 _ => { /* Use Default EYE and LOOK parameters */  },
+             }
+         }
+
      }
 
      render();
@@ -81,8 +89,8 @@ fn render() {
     let blue = Material{amb:Vec3::new(0.0,0.0,1.0), reflect:0.0};
     let green = Material{amb:Vec3::new(0.0,1.0,0.0), reflect:0.35};
     let red = Material{amb:Vec3::new(1.0,0.0,0.0), reflect:0.0};
-    let mirror = Material{amb:Vec3::new(0.15,0.15,0.15), reflect:0.8};
-    let floor_mat = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.1};
+    let mirror = Material{amb:Vec3::new(0.15,0.15,0.15), reflect:0.9};
+    let floor_mat = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.085};
     let brass = Material{amb:Vec3::new(0.329412, 0.223529, 0.027451), reflect:0.0 };
 
     // Setup Verts
@@ -448,8 +456,8 @@ impl Surface for Sphere {
         let negative_dir = ray.dir * -1.0;
         let h = light_dir + negative_dir;
         max = largest_of(na::dot(&normal, &h));
-        max.powf(1.0);
-        mat = mat + Vec3::new(0.25f32,0.25f32,0.25f32) * max;
+        max.powf(1.5);
+        mat = mat + Vec3::new(0.35f32,0.35f32,0.35f32) * max;
 
         // Apply Shadow if necessary
         if in_shadow { mat = mat * 0.2; }
