@@ -25,13 +25,13 @@ const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:Vec3<f64> = Vec3{x:0.0f64,y:1.0f64,z:0.0f64};
 const LIGHT_POS:Vec3<f64> = Vec3{x:25.0f64,y:25.0f64,z:-10.0f64};
 
+// Static Mut 'Global' Variables
 static mut EYE:Vec3<f64> = Vec3{x:0.0f64,y:2.5f64,z:-1.0f64};
 static mut LOOK:Vec3<f64> = Vec3{x:1.0f64, y:1.0f64, z:3.0f64};
 
 static mut U:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
 static mut V:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
 static mut W:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
-// Setup Eye and LookAt positions
 
 fn main() {
     /*
@@ -43,19 +43,19 @@ fn main() {
      // Retrieve EYE and LOOKAT positions from commandline args
      // if they exist. Otherwise, default to initial values
      let args:Vec<String> = env::args().collect();
-     unsafe {
-         let mut unwrap:Vec<f64> = Vec::new();
-         let mut error = false;
-         for x in 1..args.len() {
-             let parse = f64::from_str(&args[x]);
-             match parse {
-                 Ok(num) => unwrap.push(num),
-                 Err(e) => {
-                     println!("Error Parsing Arg[{}] = '{}' , Err = '{}'", x , args[x], e );
-                     error = true;
-                 },
-             }
+     let mut unwrap:Vec<f64> = Vec::new();
+     let mut error = false;
+     for x in 1..args.len() {
+         let parse = f64::from_str(&args[x]);
+         match parse {
+             Ok(num) => unwrap.push(num),
+             Err(e) => {
+                 println!("Error Parsing Arg[{}] = '{}' , Err = '{}'", x , args[x], e );
+                 error = true;
+             },
          }
+     }
+     unsafe {
          if !error {
              match unwrap.len() {
                  6 => {
@@ -68,9 +68,7 @@ fn main() {
                  _ => { /* Use Default EYE and LOOK parameters */  },
              }
          }
-
      }
-
      render();
 }
 
@@ -422,12 +420,8 @@ impl Surface for Sphere {
         let b = 2.0 * na::dot(&ray.dir, &e_minus_c);
         let c = na::dot(&e_minus_c,&e_minus_c) - self.radius * self.radius;
         let disc = (b * b) - (4.0 * a * c);
-        if disc < 0.0 {
-            None
-        }
-        else {
-            self.quadratic(a,b,disc)
-        }
+        if disc < 0.0 { None }
+        else { self.quadratic(a,b,disc) }
     }
 
     fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
