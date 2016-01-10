@@ -233,9 +233,10 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
             let us = -1.0 + img_dim * ((x as f64) + 0.5);
             let vs = -1.0 + img_dim * ((y as f64) + 0.5);
 
-            // Because we are using the 'unsafe' variables, we must
-            // designate this an 'unsafe' block. However, we are not changing
-            // the static global variables in any way in this block.
+            // Generate the View Ray for 'this' pixel.
+            // Makes use of UVW basis vecs which Requires
+            // an unsafe block, however, we are only 'reading'
+            // their values, so this is 'safe'
             let view_ray:Ray;
             unsafe {
                 let mut temp = U * us;
@@ -305,10 +306,14 @@ fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>,
     depth:i32, surfaces:&Arc<Vec<Box<Surface>>>) -> Vec3<f32> {
 
     if depth == 0 { return BKG_COLOR;}
+
+    // Calculate Reflection Ray
     let dot_n = 2.0 * na::dot(&view_dir, &normal);
     let dir = normal * dot_n;
     let ray = Ray{src:point, dir:(view_dir - dir).normalize()};
 
+    // Rest of function is largely similar to intersection test
+    // in thread_render()
     let mut near_surf:Option<&Box<Surface>> = None;
     let mut current = TFAR;
     for surf in surfaces.iter() {
@@ -407,6 +412,10 @@ impl Sphere {
 }
 
 impl Surface for Sphere {
+    /// Solving for 't' for Ray: src + dir * t
+    /// s.t. Ray intersects Sphere.
+    /// Sphere is intersected by ray if t is real
+    /// Returns Some(t) only if bounded by TNEAR && TFAR
     fn hit(&self, ray:&Ray)->Option<f64> {
         let e_minus_c = ray.src - self.center;
         let a = na::dot(&ray.dir, &ray.dir);
@@ -541,6 +550,12 @@ impl Surface for Triangle {
         else { Some(t) }
     }
 
+    /// Calculates Ray intersection of Triangle by utilizing
+    /// Shirley's Ray Intersection formula that defines plane
+    /// of points A,B,C in Triangle and tests if Barycentric coords
+    /// are restricted to Triangle. Solve for Barycentric coords
+    /// using Cramers rule of M * [Beta, Gamma, t] = [A - Src]
+    /// to solve for [Beta,Gamma,t]
     fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
         t:f64, depth:i32) -> Vec3<f32> {
 
