@@ -267,15 +267,13 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
 
             // If we have a surface at this point, it is a surface that is nearest to the Eye
             // and can now be used to calculate a color. Otherwise, we push the bkg_color
-            match near_surf {
-                Some(surf) => {
-                    let color = surf.calculate_color(&view_ray,&surfaces, near_t, MAX_DEPTH - 1);
-                    image.img.push(color);
-                },
-                None => {
-                    image.img.push(BKG_COLOR);
-                },
-            }
+            image.img.push(
+                match near_surf {
+                    Some(surf) => {
+                        surf.calculate_color(&view_ray,&surfaces, near_t, MAX_DEPTH - 1)
+                    },
+                    None => { BKG_COLOR },
+            });
         }
     }
     image
@@ -288,7 +286,6 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
 fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
     let light_dir = (LIGHT_POS - point).normalize();
     let light_ray = Ray{src:point, dir:light_dir};
-    let hit = false;
     for s in surfaces.iter() {
         let test = s.hit(&light_ray);
         match test {
@@ -298,7 +295,7 @@ fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
             None => {},
         }
     }
-    hit
+    false
 }
 
 /// Casts a Reflection ray from the 'Point' in a direction that is calculated from the incoming
@@ -330,9 +327,7 @@ fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>,
         Some(surf) => {
             surf.calculate_color(&ray,surfaces,current,depth)
         },
-        None => {
-            BKG_COLOR
-        }
+        None => { BKG_COLOR },
     }
 }
 
@@ -402,16 +397,12 @@ impl Sphere {
         let p_bound = (p > TNEAR) && (p < TFAR);
         let q_bound = (q > TNEAR) && (q < TFAR);
         if p_bound && q_bound {
-            if p > q { Some(q) } else { Some(p) }
+            if p > q { Some(q) }
+            else { Some(p) }
         }
-        else if p_bound {
-            Some(p)
-        } else if q_bound {
-            Some(q)
-        }
-        else {
-            None
-        }
+        else if p_bound { Some(p) }
+        else if q_bound { Some(q) }
+        else { None }
     }
 }
 
@@ -459,10 +450,10 @@ impl Surface for Sphere {
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
-            mat = mix(mat, reflect(point, ray.dir, normal, depth - 1, surfaces),
-            self.material.reflect);
+            mix(mat, reflect(point, ray.dir, normal, depth - 1, surfaces),
+            self.material.reflect)
         }
-        mat
+        else { mat }
     }
  }
 
@@ -520,6 +511,7 @@ impl Surface for Triangle {
         let kilf = k * i - l * f;
         let digf = d * i - f * g;
         let dlgk = d * l - g * k;
+        let elhk = e * l - h * k;
 
         // Solve for Determinant of M
         //A * (E*I – H*F) – B*(D*I – G*F) + C*(D*H – E*G)
@@ -527,11 +519,12 @@ impl Surface for Triangle {
 
         // Solve for 't'
         // A * (E*L – H*K) – B*(D*L – G*K) + J*(D*H – E*G)
-        let mut t = a * (e * l - h * k) - b * dlgk + j * dheg;
+        let mut t = a * elhk - b * dlgk + j * dheg;
         t /= det_m;
         if t < TNEAR || t > TFAR {
             return None;
         }
+
         // Solve for 'gamma'
         // A * (K * I – L * F) – J * (D * I – F * G) + C* (D*L – K * G)
         let mut gamma = a * kilf - j * digf + c * dlgk;
@@ -542,14 +535,10 @@ impl Surface for Triangle {
 
         // Solve for 'beta'
         // J * ( E * I – H * F) – B * (K * I – l * F) + C * (K*H – L*E)
-        let mut beta = j * eihf - b * kilf + c * (k * h - l * e);
+        let mut beta = j * eihf - b * kilf - c * elhk;
         beta /= det_m;
-        if beta < 0.0 || beta > (1.0 - gamma) {
-            None
-        }
-        else {
-            Some(t)
-        }
+        if beta < 0.0 || beta > (1.0 - gamma) { None }
+        else { Some(t) }
     }
 
     fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
@@ -589,9 +578,9 @@ impl Surface for Triangle {
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
-            mat = mix(mat, reflect(point, ray.dir,normal, depth - 1, surfaces),
-            self.material.reflect);
+            mix(mat, reflect(point, ray.dir,normal, depth - 1, surfaces),
+            self.material.reflect)
         }
-        mat
+        else { mat }
     }
 }
