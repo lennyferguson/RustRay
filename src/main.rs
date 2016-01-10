@@ -14,10 +14,6 @@ use std::thread;
 use std::sync::{Arc};
 use piston_window::*;
 
-// Create Type alias for Vec3<f32> & Vec3<f64>
-type F = Vec3<f32>;
-type D = Vec3<f64>;
-
 const MAX_DEPTH:i32 = 5;
 const NEAR:f64 = 1.2;
 const EPSILON:f64 = 1.0 / 1000000.0;
@@ -25,12 +21,12 @@ const DIM:i32 = 800;
 const TNEAR:f64 = 0.0;
 const TFAR:f64 = 10000000.0;
 
-const BKG_COLOR:F = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
-const UP:D = Vec3{x:0.0f64,y:1.0f64,z:0.0f64};
-const LIGHT_POS:D = Vec3{x:25.0f64,y:25.0f64,z:-10.0f64};
+const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
+const UP:Vec3<f64> = Vec3{x:0.0f64,y:1.0f64,z:0.0f64};
+const LIGHT_POS:Vec3<f64> = Vec3{x:25.0f64,y:25.0f64,z:-10.0f64};
 
-static mut EYE:D = Vec3{x:0.0f64,y:2.5f64,z:-1.0f64};
-static mut LOOK:D = Vec3{x:1.0f64, y:1.0f64, z:3.0f64};
+static mut EYE:Vec3<f64> = Vec3{x:0.0f64,y:2.5f64,z:-1.0f64};
+static mut LOOK:Vec3<f64> = Vec3{x:1.0f64, y:1.0f64, z:3.0f64};
 
 static mut U:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
 static mut V:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
@@ -200,11 +196,11 @@ fn render() {
             clear([1.0; 4], g);
             for quad in quads.iter() {
                 let mut index = 0;
-                for y in quad.ymin..quad.ymax {
-                    for x in quad.xmin..quad.xmax {
+                for y in quad.ymin .. quad.ymax {
+                    for x in quad.xmin .. quad.xmax {
                         let color = quad.img[index];
                         index += 1;
-                        rectangle([color.x,color.y,color.z,1.0],
+                        rectangle([color.x, color.y, color.z, 1.0],
                             [x as f64, (DIM - y) as f64, 1.0, 1.0],
                             c.transform, g);
                     }
@@ -236,7 +232,6 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
         for x in xmin .. xmax {
             let us = -1.0 + img_dim * ((x as f64) + 0.5);
             let vs = -1.0 + img_dim * ((y as f64) + 0.5);
-            let dir:Vec3<f64>;
 
             // Because we are using the 'unsafe' variables, we must
             // designate this an 'unsafe' block. However, we are not changing
@@ -249,8 +244,7 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
                 s = s + temp;
                 temp = W * NEAR;
                 s = s + temp;
-                dir = (s - EYE).normalize();
-                view_ray = Ray{src:EYE, dir:dir};
+                view_ray = Ray{src:EYE, dir:(s - EYE).normalize()};
             }
 
             // For each Surface, test for intersection with View Ray
