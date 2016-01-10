@@ -82,7 +82,7 @@ fn render() {
     let green = Material{amb:Vec3::new(0.0,1.0,0.0), reflect:0.35};
     let red = Material{amb:Vec3::new(1.0,0.0,0.0), reflect:0.0};
     let mirror = Material{amb:Vec3::new(0.15,0.15,0.15), reflect:0.8};
-    let floor_mat = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.0};
+    let floor_mat = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.1};
     let brass = Material{amb:Vec3::new(0.329412, 0.223529, 0.027451), reflect:0.0 };
 
     // Setup Verts
