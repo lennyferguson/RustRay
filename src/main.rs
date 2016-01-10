@@ -27,7 +27,7 @@ const TFAR:f64 = 10000000.0;
 
 const BKG_COLOR:F = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:D = Vec3{x:0.0f64,y:1.0f64,z:0.0f64};
-const LIGHT_POS:D = Vec3{x:3.0f64,y:4.0f64,z:-1.0f64};
+const LIGHT_POS:D = Vec3{x:25.0f64,y:25.0f64,z:-10.0f64};
 
 static mut EYE:D = Vec3{x:0.0f64,y:2.5f64,z:-1.0f64};
 static mut LOOK:D = Vec3{x:1.0f64, y:1.0f64, z:3.0f64};
@@ -572,13 +572,13 @@ impl Surface for Triangle {
         // Compute Diffuse Component of BRDF
         let light_dir = (LIGHT_POS - point).normalize();
         let mut max = largest_of(na::dot(&normal, &light_dir));
-        mat = mat + Vec3::new(0.5,0.5,0.5) * max;
+        mat = mat + Vec3::new(0.25,0.25,0.25) * max;
 
         // Add Specular Contribution of BRDF
         // Compute Halfway Vector
         let h = light_dir + ray.dir * -1.0;
         max = largest_of(na::dot(&normal, &h));
-        max.powf(1.0);
+        max.powf(1.2);
         mat = mat + Vec3::new(0.3f32,0.3f32,0.3f32) * max;
 
         // Apply Shadow if necessary
