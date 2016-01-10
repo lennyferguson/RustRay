@@ -55,7 +55,7 @@ fn main() {
              match parse {
                  Ok(num) => unwrap.push(num),
                  Err(e) => {
-                     println!("Error Parsing Arg[{}] = ' {} '", x , e );
+                     println!("Error Parsing Arg[{}] = '{}' , Err = '{}'", x , args[x], e );
                      error = true;
                  },
              }
