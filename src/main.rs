@@ -25,14 +25,6 @@ const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:Vec3<f64> = Vec3{x:0.0f64,y:1.0f64,z:0.0f64};
 const LIGHT_POS:Vec3<f64> = Vec3{x:25.0f64,y:25.0f64,z:-10.0f64};
 
-// Static Mut 'Global' Variables
-static mut EYE:Vec3<f64> = Vec3{x:0.0f64,y:2.5f64,z:-1.0f64};
-static mut LOOK:Vec3<f64> = Vec3{x:1.0f64, y:1.0f64, z:3.0f64};
-
-static mut U:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
-static mut V:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
-static mut W:Vec3<f64> = Vec3{x:0.0,y:0.0,z:0.0};
-
 fn main() {
     /*
         Render sets up Piston Window. Calls RayTracer
@@ -55,24 +47,25 @@ fn main() {
              },
          }
      }
-     unsafe {
-         if !error {
-             match unwrap.len() {
-                 6 => {
-                     EYE = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
-                     LOOK = Vec3::new(unwrap[3], unwrap[4], unwrap[5]);
-                 },
-                 3 => {
-                     EYE = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
-                 },
-                 _ => { /* Use Default EYE and LOOK parameters */  },
-             }
+
+     let mut eye = Vec3::new(0.0f64,2.5f64,-1.0f64);
+     let mut look = Vec3::new(1.0f64, 1.0f64, 3.0f64);
+     if !error {
+         match unwrap.len() {
+             6 => {
+                 eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
+                 look = Vec3::new(unwrap[3], unwrap[4], unwrap[5]);
+             },
+             3 => {
+                 eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
+             },
+             _ => { /* Use Default EYE and LOOK parameters */  },
          }
      }
-     render();
+     render(eye, look);
 }
 
-fn render() {
+fn render(eye:Vec3<f64>, look:Vec3<f64>) {
     // Begin Render Loop for Image
     // Init Vec containing Surfaces
     // Surface is a trait, which means that we must Box the
@@ -144,31 +137,49 @@ fn render() {
     // variables, or changing them again after this point. The Threads
     // in particular will be using them without modifying them, which makes
     // this 'safe'.
+    let eye_at = (eye - look).normalize();
+    let u = na::cross(&eye_at, &UP).normalize();
+    let v = na::cross(&u, &eye_at).normalize();
+    let w = na::cross(&u, &v).normalize();
 
-    unsafe {
-        let eye_at = (EYE - LOOK).normalize();
-        U = na::cross(&eye_at, &UP).normalize();
-        V = na::cross(&U, &eye_at).normalize();
-        W = na::cross(&U, &V).normalize();
-    }
+    let img_dim = 2.0 / (DIM as f64);
+
+    let calculate_viewray = move |x, y| {
+        let us = -1.0 + img_dim * ((x as f64) + 0.5);
+        let vs = -1.0 + img_dim * ((y as f64) + 0.5);
+
+        let mut temp = u * us;
+        let mut s = eye + temp;
+        temp = v * vs;
+        s = s + temp;
+        temp = w * NEAR;
+        s = s + temp;
+        Ray{src:eye, dir:(s - eye).normalize()}
+    };
+
+    let lambda = Arc::new(calculate_viewray);
+    let lambda_a = lambda.clone();
+    let lambda_b = lambda.clone();
+    let lambda_c = lambda.clone();
+    let lambda_d = lambda.clone();
 
     let mut start = time::precise_time_s();
 
     // Run Threads that operate on disjoint image Quads
     let a_thread = thread::spawn(move || {
-        thread_render(s_a, 0, (DIM / 2) as i32, 0, (DIM / 2) as i32)
+        thread_render(s_a, lambda_a, 0, (DIM / 2) as i32, 0, (DIM / 2) as i32)
     });
 
     let b_thread = thread::spawn(move || {
-        thread_render(s_b, (DIM / 2) as i32, DIM, 0, (DIM / 2) as i32)
+        thread_render(s_b, lambda_b, (DIM / 2) as i32, DIM, 0, (DIM / 2) as i32)
     });
 
     let c_thread = thread::spawn(move || {
-        thread_render(s_c, 0, (DIM / 2) as i32, (DIM / 2) as i32, DIM + 1)
+        thread_render(s_c, lambda_c, 0, (DIM / 2) as i32, (DIM / 2) as i32, DIM + 1)
     });
 
     let d_thread = thread::spawn(move || {
-        thread_render(s_d, (DIM / 2) as i32, DIM, (DIM / 2) as i32, DIM + 1)
+        thread_render(s_d, lambda_d, (DIM / 2) as i32, DIM, (DIM / 2) as i32, DIM + 1)
     });
 
     // Join Threads before displaying Image
@@ -219,32 +230,19 @@ fn render() {
 
 /* This function will be used by a thread to Generate a section of the
    image being drawn. */
-fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
+fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, lambda:Arc<F>,
     xmin:i32, xmax:i32, ymin:i32, ymax:i32) -> ImageQuad {
 
     let mut image = ImageQuad::new(xmin, xmax, ymin, ymax);
 
-    let img_dim = 2.0 / (DIM as f64);
-
+    // Iterate through the the pixels in our Image Plane
     for y in ymin .. ymax {
         for x in xmin .. xmax {
-            let us = -1.0 + img_dim * ((x as f64) + 0.5);
-            let vs = -1.0 + img_dim * ((y as f64) + 0.5);
-
             // Generate the View Ray for 'this' pixel.
             // Makes use of UVW basis vecs which Requires
             // an unsafe block, however, we are only 'reading'
             // their values, so this is 'safe'
-            let view_ray:Ray;
-            unsafe {
-                let mut temp = U * us;
-                let mut s = EYE + temp;
-                temp = V * vs;
-                s = s + temp;
-                temp = W * NEAR;
-                s = s + temp;
-                view_ray = Ray{src:EYE, dir:(s - EYE).normalize()};
-            }
+            let view_ray = lambda(x,y);
 
             // For each Surface, test for intersection with View Ray
             // Track surface nearest to Viewer with near_t scalar
@@ -278,7 +276,6 @@ fn thread_render(surfaces:Arc<Vec<Box<Surface>>>,
     image
 }
 
-#[allow(unused_variables)]
 /// For the given point, calculates if the point is shaded
 /// and returns true if in shadow, false otherwise.
 /// Requires access the Vec containing the scenes Surfaces.
@@ -288,10 +285,10 @@ fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
     for s in surfaces.iter() {
         let test = s.hit(&light_ray);
         match test {
-            Some(t) => {
+            Some(_) => {
                 return true
             },
-            None => {},
+            None => { },
         }
     }
     false
@@ -303,7 +300,7 @@ fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
 fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>,
     depth:i32, surfaces:&Arc<Vec<Box<Surface>>>) -> Vec3<f32> {
 
-    if depth == 0 { return BKG_COLOR;}
+    if depth == 0 { return BKG_COLOR; }
 
     // Calculate Reflection Ray
     let dot_n = 2.0 * na::dot(&view_dir, &normal);
@@ -444,7 +441,7 @@ impl Surface for Sphere {
         let negative_dir = ray.dir * -1.0;
         let h = light_dir + negative_dir;
         max = largest_of(na::dot(&normal, &h));
-        max.powf(1.5);
+        max.powf(1.5);  /* max(normal * h)^(shininess) */
         mat = mat + Vec3::new(0.35f32,0.35f32,0.35f32) * max;
 
         // Apply Shadow if necessary
