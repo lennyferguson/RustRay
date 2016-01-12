@@ -34,6 +34,9 @@ fn main() {
 
      // Retrieve EYE and LOOKAT positions from commandline args
      // if they exist. Otherwise, default to initial values
+     let mut eye = Vec3::new(0.0f64,2.5f64,-1.0f64);
+     let mut look = Vec3::new(1.0f64, 1.0f64, 3.0f64);
+
      let args:Vec<String> = env::args().collect();
      let mut unwrap:Vec<f64> = Vec::new();
      let mut error = false;
@@ -47,9 +50,6 @@ fn main() {
              },
          }
      }
-
-     let mut eye = Vec3::new(0.0f64,2.5f64,-1.0f64);
-     let mut look = Vec3::new(1.0f64, 1.0f64, 3.0f64);
      if !error {
          match unwrap.len() {
              6 => {
@@ -106,7 +106,7 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
     surfaces.push(Box::new(Sphere::new(Vec3::new(0.0,2.65,3.0), 0.55, red)));
 
     // Add Mirror Sphere
-    surfaces.push(Box::new(Sphere::new(Vec3::new(3.0,1.0,3.0),1.0, mirror)));
+    surfaces.push(Box::new(Sphere::new(Vec3::new(3.5,1.0,3.5),1.0, mirror)));
 
     // Add floor with pattern value set to true
     surfaces.push(Box::new(Triangle::new(floor_verts[0], floor_verts[1], floor_verts[2], floor_mat, true)));
@@ -154,7 +154,7 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
         s = s + temp;
         temp = w * NEAR;
         s = s + temp;
-        Ray{src:eye, dir:(s - eye).normalize()}
+        Ray{src:eye, dir:(s - eye).normalize()} // -> Return Ray
     };
 
     let lambda = Arc::new(calculate_viewray);
@@ -230,7 +230,7 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
 
 /* This function will be used by a thread to Generate a section of the
    image being drawn. */
-fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, lambda:Arc<F>,
+fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_lambda:Arc<F>,
     xmin:i32, xmax:i32, ymin:i32, ymax:i32) -> ImageQuad {
 
     let mut image = ImageQuad::new(xmin, xmax, ymin, ymax);
@@ -239,10 +239,10 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, lambda:Arc
     for y in ymin .. ymax {
         for x in xmin .. xmax {
             // Generate the View Ray for 'this' pixel.
-            // Makes use of UVW basis vecs which Requires
-            // an unsafe block, however, we are only 'reading'
-            // their values, so this is 'safe'
-            let view_ray = lambda(x,y);
+            // Makes use of UVW basis vecs captured in the 'closure'
+            // of the lambda function No need for 'unsafe'
+            // static mut 'global' variables
+            let view_ray = viewray_lambda(x,y);
 
             // For each Surface, test for intersection with View Ray
             // Track surface nearest to Viewer with near_t scalar
