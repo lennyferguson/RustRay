@@ -6,6 +6,7 @@
 extern crate nalgebra as na;
 extern crate piston_window;
 extern crate time;
+//extern crate getopts;
 
 use na::*;
 use std::env;
@@ -13,6 +14,7 @@ use std::str::FromStr;
 use std::thread;
 use std::sync::{Arc};
 use piston_window::*;
+//use getopts::{optopt,optflag,getopts,OptGroup};
 
 const MAX_DEPTH:i32 = 5;
 const NEAR:f64 = 1.2;
@@ -38,6 +40,17 @@ fn main() {
      let mut look = Vec3::new(1.0f64, 1.0f64, 3.0f64);
 
      let args:Vec<String> = env::args().collect();
+
+     //Begining work setting up getopts argument inputs
+     /*
+     let opts = [
+        optopt("e", "eye","Sets the Camera Origin (i.e. the Eye)", "EYE"),
+        optopt("a", "at", "Sets the position of what the camera looks AT", "AT"),
+        optopt("d", "dim", "Set the Output Window X & Y dim.", "DIM"),
+        optopt("t", "thread", "Set # of Child Threads. Does not exceed DIM", "THREAD"),
+        optopt("h", "help", "Print RustRay opts", "HELP"),
+     ];*/
+
      let mut unwrap:Vec<f64> = Vec::new();
      let mut error = false;
      for x in 1..args.len() {
@@ -55,11 +68,11 @@ fn main() {
              6 => {
                  eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
                  look = Vec3::new(unwrap[3], unwrap[4], unwrap[5]);
-             },
+             }
              3 => {
                  eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
-             },
-             _ => { /* Use Default EYE and LOOK parameters */  },
+             }
+             _ => { /* Use Default EYE and LOOK parameters */  }
          }
      }
      render(eye, look);
@@ -132,11 +145,10 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
     let s_c = s_copy.clone();
     let s_d = s_copy.clone();
 
-    // Reassign static mut global UVW basis coords
-    // While technically unsafe, we will not be 'reassigning'
-    // variables, or changing them again after this point. The Threads
-    // in particular will be using them without modifying them, which makes
-    // this 'safe'.
+    // U,V,W basis Vecs are now captured from the environment of the calling
+    // thread and 'moved' to the closure 'calculate_viewray'. An Arc of the closure
+    // is now passed to each thread, which allows us to avoid 'global' variables and instead
+    // we have each thread have the closure calculate the ViewRay
     let eye_at = (eye - look).normalize();
     let u = na::cross(&eye_at, &UP).normalize();
     let v = na::cross(&u, &eye_at).normalize();
@@ -257,8 +269,8 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
                             near_t = t;
                             near_surf = Some(s);
                         }
-                    },
-                    None => { },
+                    }
+                    None => { }
                 }
             }
 
@@ -268,8 +280,8 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
                 match near_surf {
                     Some(surf) => {
                         surf.calculate_color(&view_ray,&surfaces, near_t, MAX_DEPTH - 1)
-                    },
-                    None => { BKG_COLOR },
+                    }
+                    None => { BKG_COLOR }
             });
         }
     }
@@ -286,9 +298,9 @@ fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
         let test = s.hit(&light_ray);
         match test {
             Some(_) => {
-                return true
-            },
-            None => { },
+                return true; /* Exit immediately if surface occludes ray to light source */
+            }
+            None => { }
         }
     }
     false
@@ -319,15 +331,15 @@ fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>,
                     current = t;
                     near_surf = Some(surf);
                 }
-            },
-            None => { },
+            }
+            None => { }
         }
     }
     match near_surf {
         Some(surf) => {
             surf.calculate_color(&ray,surfaces,current,depth)
-        },
-        None => { BKG_COLOR },
+        }
+        None => { BKG_COLOR }
     }
 }
 
