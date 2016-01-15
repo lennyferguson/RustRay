@@ -8,7 +8,7 @@ extern crate piston_window;
 extern crate time;
 //extern crate getopts;
 
-use na::*;
+use na::{Vec3,Norm};
 use std::env;
 use std::str::FromStr;
 use std::thread;
@@ -17,15 +17,15 @@ use piston_window::*;
 //use getopts::{optopt,optflag,getopts,OptGroup};
 
 const MAX_DEPTH:i32 = 5;
-const NEAR:f64 = 1.2;
-const EPSILON:f64 = 1.0 / 1000000.0;
+const NEAR:f32 = 1.2;
+const EPSILON:f32 = 1.0 / 10000.0;
 const DIM:i32 = 800;
-const TNEAR:f64 = 0.0;
-const TFAR:f64 = 10000000.0;
+const T0:f32 = 0.0;
+const T1:f32 = 100000.0;
 
 const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
-const UP:Vec3<f64> = Vec3{x:0.0f64,y:1.0f64,z:0.0f64};
-const LIGHT_POS:Vec3<f64> = Vec3{x:25.0f64,y:25.0f64,z:-10.0f64};
+const UP:Vec3<f32> = Vec3{x:0.0f32,y:1.0f32,z:0.0f32};
+const LIGHT_POS:Vec3<f32> = Vec3{x:25.0f32,y:25.0f32,z:-10.0f32};
 
 fn main() {
     /*
@@ -36,8 +36,8 @@ fn main() {
 
      // Retrieve EYE and LOOKAT positions from commandline args
      // if they exist. Otherwise, default to initial values
-     let mut eye = Vec3::new(0.0f64,2.5f64,-1.0f64);
-     let mut look = Vec3::new(1.0f64, 1.0f64, 3.0f64);
+     let mut eye = Vec3::new(0.0f32,2.5f32,-1.0f32);
+     let mut look = Vec3::new(1.0f32, 1.0f32, 3.0f32);
 
      let args:Vec<String> = env::args().collect();
 
@@ -46,15 +46,15 @@ fn main() {
      let opts = [
         optopt("e", "eye","Sets the Camera Origin (i.e. the Eye)", "EYE"),
         optopt("a", "at", "Sets the position of what the camera looks AT", "AT"),
-        optopt("d", "dim", "Set the Output Window X & Y dim.", "DIM"),
-        optopt("t", "thread", "Set # of Child Threads. Does not exceed DIM", "THREAD"),
+        optopt("d", "dim", "Set the Output Window X & Y dim. Allows range of [100:4000]", "DIM"),
+        optopt("t", "thread", "Set # of Child Threads. Allows range of [1 : 16]", "THREAD"),
         optopt("h", "help", "Print RustRay opts", "HELP"),
      ];*/
 
-     let mut unwrap:Vec<f64> = Vec::new();
+     let mut unwrap:Vec<f32> = Vec::new();
      let mut error = false;
      for x in 1..args.len() {
-         let parse = f64::from_str(&args[x]);
+         let parse = f32::from_str(&args[x]);
          match parse {
              Ok(num) => unwrap.push(num),
              Err(e) => {
@@ -78,12 +78,11 @@ fn main() {
      render(eye, look);
 }
 
-fn render(eye:Vec3<f64>, look:Vec3<f64>) {
+fn render(eye:Vec3<f32>, look:Vec3<f32>) {
     // Begin Render Loop for Image
     // Init Vec containing Surfaces
     // Surface is a trait, which means that we must Box the
     // Structs that impl Surface to properly store them
-    let mut surfaces:Vec<Box<Surface>> = Vec::new();
 
     // Setup Materials
     let blue = Material{amb:Vec3::new(0.0,0.0,1.0), reflect:0.0};
@@ -94,14 +93,14 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
     let brass = Material{amb:Vec3::new(0.329412, 0.223529, 0.027451), reflect:0.0 };
 
     // Setup Verts
-    let floor_verts:[Vec3<f64>;4] = [
+    let floor_verts:[Vec3<f32>;4] = [
         Vec3::new(-10.0,0.0,-10.0),
         Vec3::new(-10.0,0.0,10.0),
         Vec3::new(10.0,0.0,10.0),
         Vec3::new(10.0,0.0,-10.0)
     ];
 
-    let cube:[Vec3<f64>;8] = [
+    let cube:[Vec3<f32>;8] = [
         Vec3::new(1.0,0.0,1.5), // 0
         Vec3::new(1.0,0.0,0.5), // 1
         Vec3::new(2.0,0.0,0.5), // 2
@@ -113,30 +112,29 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
     ];
 
     // -----Setup Surfaces-----
-    // Add Snowman
-    surfaces.push(Box::new(Sphere::new(Vec3::new(0.0,0.5,3.0), 1.0, blue)));
-    surfaces.push(Box::new(Sphere::new(Vec3::new(0.0,1.85,3.0), 0.75, green)));
-    surfaces.push(Box::new(Sphere::new(Vec3::new(0.0,2.65,3.0), 0.55, red)));
 
-    // Add Mirror Sphere
-    surfaces.push(Box::new(Sphere::new(Vec3::new(3.5,1.0,3.5),1.0, mirror)));
-
-    // Add floor with pattern value set to true
-    surfaces.push(Box::new(Triangle::new(floor_verts[0], floor_verts[1], floor_verts[2], floor_mat, true)));
-    surfaces.push(Box::new(Triangle::new(floor_verts[0], floor_verts[2],floor_verts[3], floor_mat,true)));
-
-    // Add brass cube triangles
-    surfaces.push(Box::new(Triangle::new(cube[0],cube[5],cube[1], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[0],cube[4],cube[5], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[0],cube[4],cube[3], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[4],cube[7],cube[3], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[4],cube[7],cube[5], brass, false)));
-
-    surfaces.push(Box::new(Triangle::new(cube[5],cube[7],cube[6], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[5],cube[2],cube[6], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[5],cube[1],cube[2], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[6],cube[7],cube[3], brass, false)));
-    surfaces.push(Box::new(Triangle::new(cube[6],cube[3],cube[2], brass, false)));
+    let surfaces:Vec<Box<Surface>> = vec!(
+        // Add Snowman
+        Box::new(Sphere::new(Vec3::new(0.0,0.5,3.0), 1.0, blue)),
+        Box::new(Sphere::new(Vec3::new(0.0,1.85,3.0), 0.75, green)),
+        Box::new(Sphere::new(Vec3::new(0.0,2.65,3.0), 0.55, red)),
+        // Add Mirror Sphere
+        Box::new(Sphere::new(Vec3::new(3.5,1.0,3.5),1.0, mirror)),
+        // Add floor with pattern value set to true
+        Box::new(Triangle::new(floor_verts[0], floor_verts[1], floor_verts[2], floor_mat, true)),
+        Box::new(Triangle::new(floor_verts[0], floor_verts[2], floor_verts[3], floor_mat, true)),
+        // Add brass cube triangles
+        Box::new(Triangle::new(cube[0],cube[5],cube[1], brass, false)),
+        Box::new(Triangle::new(cube[0],cube[4],cube[5], brass, false)),
+        Box::new(Triangle::new(cube[0],cube[4],cube[3], brass, false)),
+        Box::new(Triangle::new(cube[4],cube[7],cube[3], brass, false)),
+        Box::new(Triangle::new(cube[4],cube[7],cube[5], brass, false)),
+        Box::new(Triangle::new(cube[5],cube[7],cube[6], brass, false)),
+        Box::new(Triangle::new(cube[5],cube[2],cube[6], brass, false)),
+        Box::new(Triangle::new(cube[5],cube[1],cube[2], brass, false)),
+        Box::new(Triangle::new(cube[6],cube[7],cube[3], brass, false)),
+        Box::new(Triangle::new(cube[6],cube[3],cube[2], brass, false))
+    );
 
     // Create Arc Shared Ref to Surface Vec
     let s_copy = Arc::new(surfaces);
@@ -154,11 +152,11 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
     let v = na::cross(&u, &eye_at).normalize();
     let w = na::cross(&u, &v).normalize();
 
-    let img_dim = 2.0 / (DIM as f64);
+    let img_dim = 2.0 / (DIM as f32);
 
     let calculate_viewray = move |x, y| {
-        let us = -1.0 + img_dim * ((x as f64) + 0.5);
-        let vs = -1.0 + img_dim * ((y as f64) + 0.5);
+        let us = -1.0 + img_dim * ((x as f32) + 0.5);
+        let vs = -1.0 + img_dim * ((y as f32) + 0.5);
 
         let mut temp = u * us;
         let mut s = eye + temp;
@@ -195,11 +193,11 @@ fn render(eye:Vec3<f64>, look:Vec3<f64>) {
     });
 
     // Join Threads before displaying Image
-    let mut quads:Vec<ImageQuad> = Vec::new();
-    quads.push(a_thread.join().unwrap());
-    quads.push(b_thread.join().unwrap());
-    quads.push(c_thread.join().unwrap());
-    quads.push(d_thread.join().unwrap());
+    let quads = vec!(
+        a_thread.join().unwrap(),
+        b_thread.join().unwrap(),
+        c_thread.join().unwrap(),
+        d_thread.join().unwrap());
 
     let mut end = time::precise_time_s() - start;
     println!("Rendering Time: {} Seconds", end);
@@ -259,7 +257,7 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
             // For each Surface, test for intersection with View Ray
             // Track surface nearest to Viewer with near_t scalar
             let mut near_surf:Option<&Box<Surface>> = None;
-            let mut near_t = TFAR;
+            let mut near_t = T1;
 
             for s in surfaces.iter() {
                 let test = s.hit(&view_ray);
@@ -291,7 +289,7 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
 /// For the given point, calculates if the point is shaded
 /// and returns true if in shadow, false otherwise.
 /// Requires access the Vec containing the scenes Surfaces.
-fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
+fn shadow(point:Vec3<f32>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
     let light_dir = (LIGHT_POS - point).normalize();
     let light_ray = Ray{src:point, dir:light_dir};
     for s in surfaces.iter() {
@@ -309,7 +307,7 @@ fn shadow(point:Vec3<f64>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
 /// Casts a Reflection ray from the 'Point' in a direction that is calculated from the incoming
 /// view_dir and surface normal. If the maximum depth has been reached in computing rays, returns
 /// the background color for the scene.
-fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>,
+fn reflect(point:Vec3<f32>, view_dir:Vec3<f32>, normal:Vec3<f32>,
     depth:i32, surfaces:&Arc<Vec<Box<Surface>>>) -> Vec3<f32> {
 
     if depth == 0 { return BKG_COLOR; }
@@ -322,7 +320,7 @@ fn reflect(point:Vec3<f64>, view_dir:Vec3<f64>, normal:Vec3<f64>,
     // Rest of function is largely similar to intersection test
     // in thread_render()
     let mut near_surf:Option<&Box<Surface>> = None;
-    let mut current = TFAR;
+    let mut current = T1;
     for surf in surfaces.iter() {
         let test = surf.hit(&ray);
         match test {
@@ -375,39 +373,39 @@ impl ImageQuad {
 /// Simple Container for a Ray
 #[derive(Copy,Clone)]
 struct Ray {
-    src:Vec3<f64>,
-    dir:Vec3<f64>,
+    src:Vec3<f32>,
+    dir:Vec3<f32>,
 }
 
 /// Trait for Surface type that can calculate a Ray Surface intersection
 /// and also calculates the Color for the point intersected on the Surface.
 trait Surface: Sync + Send {
-    fn hit(&self, ray:&Ray)->Option<f64>;
+    fn hit(&self, ray:&Ray)->Option<f32>;
     fn calculate_color(&self, ray:&Ray,
-        surfaces:&Arc<Vec<Box<Surface>>>,t:f64, depth:i32)->Vec3<f32>;
+        surfaces:&Arc<Vec<Box<Surface>>>,t:f32, depth:i32)->Vec3<f32>;
 }
 
 #[derive(Copy,Clone)]
 struct Sphere {
-    center:Vec3<f64>,
-    radius:f64,
+    center:Vec3<f32>,
+    radius:f32,
     material:Material,
 }
 
 impl Sphere {
-    fn new(c:Vec3<f64>,r:f64,mat:Material)->Sphere {
+    fn new(c:Vec3<f32>,r:f32,mat:Material)->Sphere {
         Sphere{center:c, radius:r, material:mat}
     }
 
-    fn quadratic(&self, a:f64, b:f64, disc:f64)-> Option<f64> {
+    fn quadratic(&self, a:f32, b:f32, disc:f32)-> Option<f32> {
         let p = (-b + disc.sqrt() ) / (2.0 * a);
         let q = (-b - disc.sqrt() ) / (2.0 * a);
         self.nearest(p,q)
     }
 
-    fn nearest(&self,p:f64, q:f64) -> Option<f64> {
-        let p_bound = (p > TNEAR) && (p < TFAR);
-        let q_bound = (q > TNEAR) && (q < TFAR);
+    fn nearest(&self,p:f32, q:f32) -> Option<f32> {
+        let p_bound = p > T0 && p < T1;
+        let q_bound = q > T0 && q < T1;
         if p_bound && q_bound {
             if p > q { Some(q) }
             else { Some(p) }
@@ -422,8 +420,8 @@ impl Surface for Sphere {
     /// Solving for 't' for Ray: src + dir * t
     /// s.t. Ray intersects Sphere.
     /// Sphere is intersected by ray if t is real
-    /// Returns Some(t) only if bounded by TNEAR && TFAR
-    fn hit(&self, ray:&Ray)->Option<f64> {
+    /// Returns Some(t) only if bounded by T0 && T1
+    fn hit(&self, ray:&Ray)->Option<f32> {
         let e_minus_c = ray.src - self.center;
         let a = na::dot(&ray.dir, &ray.dir);
         let b = 2.0 * na::dot(&ray.dir, &e_minus_c);
@@ -434,7 +432,7 @@ impl Surface for Sphere {
     }
 
     fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
-        t:f64, depth:i32) -> Vec3<f32> {
+        t:f32, depth:i32) -> Vec3<f32> {
 
         if depth == 0 { return self.material.amb; }
         let dir_ammt = ray.dir * (t - EPSILON);
@@ -478,22 +476,22 @@ fn mix(color_a:Vec3<f32>, color_b:Vec3<f32>, alpha:f32) -> Vec3<f32> {
     answer
 }
 
-fn largest_of(num:f64) -> f32 {
+fn largest_of(num:f32) -> f32 {
     return if num < 0.0 { 0.0 as f32 } else { num as f32 }
 }
 
 #[derive(Copy,Clone)]
 struct Triangle {
-    a:Vec3<f64>,
-    b:Vec3<f64>,
-    c:Vec3<f64>,
-    normal:Vec3<f64>,
+    a:Vec3<f32>,
+    b:Vec3<f32>,
+    c:Vec3<f32>,
+    normal:Vec3<f32>,
     material:Material,
     pattern:bool,
 }
 
 impl Triangle {
-    fn new(_a:Vec3<f64>, _b:Vec3<f64>, _c:Vec3<f64>, mat:Material, p:bool)->Triangle {
+    fn new(_a:Vec3<f32>, _b:Vec3<f32>, _c:Vec3<f32>, mat:Material, p:bool)->Triangle {
         let a_b = _a - _b;
         let a_c = _a - _c;
         let n = na::cross(&a_b, &a_c).normalize();
@@ -502,7 +500,7 @@ impl Triangle {
 }
 
 impl Surface for Triangle {
-    fn hit(&self, ray:&Ray)->Option<f64> {
+    fn hit(&self, ray:&Ray)->Option<f32> {
         // Init Matrix M vals
         let a = self.a.x - self.b.x;
         let b = self.a.x - self.c.x;
@@ -533,7 +531,7 @@ impl Surface for Triangle {
         // A * (E*L – H*K) – B*(D*L – G*K) + J*(D*H – E*G)
         let mut t = a * elhk - b * dlgk + j * dheg;
         t /= det_m;
-        if t < TNEAR || t > TFAR {
+        if t < T0 || t > T1 {
             return None;
         }
 
@@ -560,7 +558,7 @@ impl Surface for Triangle {
     /// using Cramers rule of M * [Beta, Gamma, t] = [A - Src]
     /// to solve for [Beta,Gamma,t]
     fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
-        t:f64, depth:i32) -> Vec3<f32> {
+        t:f32, depth:i32) -> Vec3<f32> {
 
         if depth == 0 { return self.material.amb; }
         let dir_ammt = ray.dir * (t - EPSILON);
