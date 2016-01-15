@@ -277,7 +277,7 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
             image.img.push(
                 match near_surf {
                     Some(surf) => {
-                        surf.calculate_color(&view_ray,&surfaces, near_t, MAX_DEPTH - 1)
+                        surf.calculate_color(&view_ray,&surfaces, near_t, MAX_DEPTH)
                     }
                     None => { BKG_COLOR }
             });
