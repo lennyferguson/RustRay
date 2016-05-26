@@ -5,6 +5,6 @@ authors = ["Stewart Charles <trio.of.four@gmail.com>"]
 
 [dependencies]
 piston_window = "0.32.0"
-nalgebra = "0.5.1"
+nalgebra = "*"
 time = "0.1"
 getopts = "0.2"
