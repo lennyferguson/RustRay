@@ -1,7 +1,7 @@
 /// Author: Stewart Charles
 /// Rust RayTracer
 /// Version 0.5
-/// Date: 09/Jan/2016
+/// Date: 25/05/2016
 
 extern crate nalgebra as na;
 extern crate piston_window;
