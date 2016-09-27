@@ -7,4 +7,3 @@ authors = ["Stewart Charles <trio.of.four@gmail.com>"]
 piston_window = "0.32.0"
 nalgebra = "0.5.1"
 time = "0.1"
-getopts = "0.2"

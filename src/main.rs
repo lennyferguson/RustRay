@@ -27,6 +27,11 @@ const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:Vec3<f32> = Vec3{x:0.0f32,y:1.0f32,z:0.0f32};
 const LIGHT_POS:Vec3<f32> = Vec3{x:25.0f32,y:25.0f32,z:-10.0f32};
 
+/* Type Definition of Arc container of Vector of Boxes containing Surface Sructs.
+   This type is used throughout the program and is quite verbose, so we will redefine
+   it with a more succint name. */
+type Surfaces = Arc<Vec<Box<Surface>>>;
+
 fn main() {
     /*
     Render sets up Piston Window. Calls RayTracer
@@ -59,8 +64,7 @@ fn main() {
             Ok(num) => unwrap.push(num),
             Err(e) => {
                 println!("Error Parsing Arg[{}] = '{}' , Err = '{}'", x , args[x], e );
-                error = true;
-            },
+                error = true; },
         }
     }
     if !error {
@@ -110,33 +114,33 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
         Vec3::new(2.0,1.0,0.5), // 6
         Vec3::new(2.0,1.0,1.5)  // 7
     ];
-
+    
     // -----Setup Surfaces-----
 
     let surfaces:Vec<Box<Surface>> = vec!(
         // Add Snowman
-        Box::new(Sphere::new(Vec3::new(0.0,0.5,3.0), 1.0, blue)),
-        Box::new(Sphere::new(Vec3::new(0.0,1.85,3.0), 0.75, green)),
-        Box::new(Sphere::new(Vec3::new(0.0,2.65,3.0), 0.55, red)),
+        Sphere::boxed(Vec3::new(0.0,0.5,3.0), 1.0, blue),
+        Sphere::boxed(Vec3::new(0.0,1.85,3.0), 0.75, green),
+        Sphere::boxed(Vec3::new(0.0,2.65,3.0), 0.55, red),
 
         // Add Mirror Sphere
-        Box::new(Sphere::new(Vec3::new(3.5,1.0,3.5),1.0, mirror)),
+        Sphere::boxed(Vec3::new(3.5,1.0,3.5),1.0, mirror),
 
         // Add floor with pattern value set to true
-        Box::new(Triangle::new(floor_verts[0], floor_verts[1], floor_verts[2], floor_mat, true)),
-        Box::new(Triangle::new(floor_verts[0], floor_verts[2], floor_verts[3], floor_mat, true)),
+        Triangle::boxed(floor_verts[0], floor_verts[1], floor_verts[2], floor_mat, true),
+        Triangle::boxed(floor_verts[0], floor_verts[2], floor_verts[3], floor_mat, true),
 
         // Add brass cube triangles
-        Box::new(Triangle::new(cube[0],cube[5],cube[1], brass, false)),
-        Box::new(Triangle::new(cube[0],cube[4],cube[5], brass, false)),
-        Box::new(Triangle::new(cube[0],cube[4],cube[3], brass, false)),
-        Box::new(Triangle::new(cube[4],cube[7],cube[3], brass, false)),
-        Box::new(Triangle::new(cube[4],cube[7],cube[5], brass, false)),
-        Box::new(Triangle::new(cube[5],cube[7],cube[6], brass, false)),
-        Box::new(Triangle::new(cube[5],cube[2],cube[6], brass, false)),
-        Box::new(Triangle::new(cube[5],cube[1],cube[2], brass, false)),
-        Box::new(Triangle::new(cube[6],cube[7],cube[3], brass, false)),
-        Box::new(Triangle::new(cube[6],cube[3],cube[2], brass, false))
+        Triangle::boxed(cube[0],cube[5],cube[1], brass, false),
+        Triangle::boxed(cube[0],cube[4],cube[5], brass, false),
+        Triangle::boxed(cube[0],cube[4],cube[3], brass, false),
+        Triangle::boxed(cube[4],cube[7],cube[3], brass, false),
+        Triangle::boxed(cube[4],cube[7],cube[5], brass, false),
+        Triangle::boxed(cube[5],cube[7],cube[6], brass, false),
+        Triangle::boxed(cube[5],cube[2],cube[6], brass, false),
+        Triangle::boxed(cube[5],cube[1],cube[2], brass, false),
+        Triangle::boxed(cube[6],cube[7],cube[3], brass, false),
+        Triangle::boxed(cube[6],cube[3],cube[2], brass, false)
     );
 
     // Create Arc Shared Ref to Surface Vec
@@ -147,9 +151,7 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
     let s_d = s_copy.clone();
 
     /* U,V,W basis Vecs are now captured from the environment of the calling
-       thread and 'moved' to the closure 'calculate_viewray'. An Arc of the closure
-       is now passed to each thread, which allows us to avoid 'global' variables and instead
-       we have each thread have the closure calculate the ViewRay */
+       thread and 'moved' to the closure 'calculate_viewray' */
     let eye_at = (eye - look).normalize();
     let u = na::cross(&eye_at, &UP).normalize();
     let v = na::cross(&u, &eye_at).normalize();
@@ -208,9 +210,11 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
     start = time::precise_time_s();
 
     // Setup Piston Window and display image
-    let window:PistonWindow = WindowSettings::new("RustRay @Author:Stewart Charles",
-    [DIM as u32,DIM as u32]).exit_on_esc(true).build().unwrap();
-
+    let window:PistonWindow = WindowSettings::new(
+        "RustRay @Author:Stewart Charles",
+        [DIM as u32,DIM as u32])
+        .exit_on_esc(true).build().unwrap();
+    
     let mut first = true;
 
     for e in window {
@@ -223,8 +227,8 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
                         let color = quad.img[index];
                         index += 1;
                         rectangle([color.x, color.y, color.z, 1.0],
-                            [x as f64, (DIM - y) as f64, 1.0, 1.0],
-                            c.transform, g);
+                                  [x as f64, (DIM - y) as f64, 1.0, 1.0],
+                                  c.transform, g);
                     }
                 }
             }
@@ -239,7 +243,7 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
 
 /* This function will be used by a thread to Generate a section of the
    image being drawn. */
-fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_lambda:Arc<F>,
+fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Surfaces, viewray_lambda:Arc<F>,
     xmin:i32, xmax:i32, ymin:i32, ymax:i32) -> ImageQuad {
 
     let mut image = ImageQuad::new(xmin, xmax, ymin, ymax);
@@ -270,7 +274,7 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
                     None => { }
                 }
             }
-
+            
             // If we have a surface at this point, it is a surface that is nearest to the Eye
             // and can now be used to calculate a color. Otherwise, we push the bkg_color
             image.img.push(
@@ -279,7 +283,7 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
                         surf.calculate_color(&view_ray,&surfaces, near_t, MAX_DEPTH)
                     }
                     None => { BKG_COLOR }
-            });
+                });
         }
     }
     image
@@ -288,7 +292,7 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Arc<Vec<Box<Surface>>>, viewray_la
 /// For the given point, calculates if the point is shaded
 /// and returns true if in shadow, false otherwise.
 /// Requires access the Vec containing the scenes Surfaces.
-fn shadow(point:Vec3<f32>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
+fn shadow(point:Vec3<f32>, surfaces:&Surfaces)-> bool {
     let light_dir = (LIGHT_POS - point).normalize();
     let light_ray = Ray{src:point, dir:light_dir};
     for s in surfaces.iter() {
@@ -307,7 +311,7 @@ fn shadow(point:Vec3<f32>, surfaces:&Arc<Vec<Box<Surface>>>)-> bool {
 /// view_dir and surface normal. If the maximum depth has been reached in computing rays, returns
 /// the background color for the scene.
 fn reflect(point:Vec3<f32>, view_dir:Vec3<f32>, normal:Vec3<f32>,
-    depth:i32, surfaces:&Arc<Vec<Box<Surface>>>) -> Vec3<f32> {
+    depth:i32, surfaces:&Surfaces) -> Vec3<f32> {
 
     if depth == 0 { return BKG_COLOR; }
 
@@ -343,7 +347,7 @@ fn reflect(point:Vec3<f32>, view_dir:Vec3<f32>, normal:Vec3<f32>,
 // Setup Data Structures used by the Ray Tracer
 
 /// Material currently only consists of the ambient term in the
-/// BRDF model, and the reflection coeff. Can be modified to include
+/// BDRF model, and the reflection coeff. Can be modified to include
 /// the Specular, Diffuse, and Shininess terms if necessary.
 /// (calculate_color function must be modified to use terms if so)
 #[derive(Copy,Clone)]
@@ -381,7 +385,7 @@ struct Ray {
 trait Surface: Sync + Send {
     fn hit(&self, ray:&Ray)->Option<f32>;
     fn calculate_color(&self, ray:&Ray,
-        surfaces:&Arc<Vec<Box<Surface>>>,t:f32, depth:i32)->Vec3<f32>;
+                       surfaces:&Surfaces,t:f32, depth:i32)->Vec3<f32>;
 }
 
 #[derive(Copy,Clone)]
@@ -413,6 +417,9 @@ impl Sphere {
         else if q_bound { Some(q) }
         else { None }
     }
+    fn boxed(c:Vec3<f32>, r:f32, mat:Material)-> Box<Sphere> {
+        Box::new(Sphere::new(c,r,mat))
+    }
 }
 
 impl Surface for Sphere {
@@ -430,7 +437,7 @@ impl Surface for Sphere {
         else { self.quadratic(a,b,disc) }
     }
 
-    fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
+    fn calculate_color(&self, ray:&Ray, surfaces:&Surfaces,
         t:f32, depth:i32) -> Vec3<f32> {
 
         if depth == 0 { return self.material.amb; }
@@ -450,7 +457,7 @@ impl Surface for Sphere {
         let negative_dir = ray.dir * -1.0;
         let h = light_dir + negative_dir;
         max = largest_of(na::dot(&normal, &h));
-        max.powf(1.5);  /* max(normal * h)^(shininess) */
+        max.powf(1.5);  
         mat = mat + Vec3::new(0.35f32,0.35f32,0.35f32) * max;
 
         // Apply Shadow if necessary
@@ -495,6 +502,9 @@ impl Triangle {
         let a_c = _a - _c;
         let n = na::cross(&a_b, &a_c).normalize();
         Triangle{a:_a, b:_b, c:_c, normal:n, material:mat, pattern:p}
+ }
+    fn boxed(_a:Vec3<f32>, _b:Vec3<f32>, _c:Vec3<f32>, mat:Material, p:bool)->Box<Triangle> {
+        Box::new(Triangle::new(_a,_b,_c,mat,p))
     }
 }
 
@@ -556,7 +566,7 @@ impl Surface for Triangle {
     /// are restricted to Triangle. Solve for Barycentric coords
     /// using Cramers rule of M * [Beta, Gamma, t] = [A - Src]
     /// to solve for [Beta,Gamma,t]
-    fn calculate_color(&self, ray:&Ray, surfaces:&Arc<Vec<Box<Surface>>>,
+    fn calculate_color(&self, ray:&Ray, surfaces:&Surfaces,
         t:f32, depth:i32) -> Vec3<f32> {
 
         if depth == 0 { return self.material.amb; }
