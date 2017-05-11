@@ -10,7 +10,7 @@ extern crate time;
 
 use na::{Vec3,Norm};
 use std::env;
-use std::str::FromStr;
+use std::str::FromStr;q
 use std::thread;
 use std::sync::{Arc};
 use piston_window::*;
@@ -208,15 +208,15 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
     // because we are supersampling the rendered ImageQuads
     // and averaging the results into an image resolution that is
     // half of DIM.
-    let mut window:PistonWindow = WindowSettings::new(
+    let window:PistonWindow = WindowSettings::new(
         "RustRay @Author:Stewart Charles",
         [HALFDIM as u32, HALFDIM as u32])
         .exit_on_esc(true).build().unwrap();
 
     let mut first = true;
 
-    while let Some(e) = window.next() {
-        window.draw_2d(&e, |c,g| {
+    for e in window {
+        e.draw_2d(|c,g| {
             clear([1.0; 4], g);
             for quad in quads.iter() {
                 /* Lambda that calculates that avg color of a pixel
@@ -428,7 +428,6 @@ impl Sphere {
         else if q_bound { Some(q) }
         else { None }
     }
-
     fn boxed(c:Vec3<f32>, r:f32, mat:Material) -> Box<Sphere> {
         Box::new(Sphere::new(c,r,mat))
     }
