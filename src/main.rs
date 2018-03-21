@@ -4,7 +4,7 @@
 /// Date: 06/Oct/2016
 
 extern crate nalgebra as na;
-extern crate piston_window;
+extern crate image;
 extern crate time;
 //extern crate getopts;
 
@@ -13,7 +13,8 @@ use std::env;
 use std::str::FromStr;
 use std::thread;
 use std::sync::{Arc};
-use piston_window::*;
+use image::ImageBuffer;
+use std::fs::File;
 //use getopts::{optopt,optflag,getopts,OptGroup};
 
 const MAX_DEPTH:i32 = 5;
@@ -52,7 +53,7 @@ fn main() {
 
     //Begining work setting up getopts argument inputs
     /*
-    let opts = [
+    let opts = [surface
     optopt("e", "eye","Sets the Camera Origin (i.e. the Eye)", "EYE"),
     optopt("a", "at", "Sets the position of what the camera looks AT", "AT"),
     optopt("d", "dim", "Set the Output Window X & Y dim. Allows range of [100:4000]", "DIM"),
@@ -176,7 +177,7 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
     let lambda_c = lambda.clone();
     let lambda_d = lambda.clone();
 
-    let mut start = time::precise_time_s();
+    let start = time::precise_time_s();
 
     // Run Threads that operate on disjoint image Quads
     let a_thread = thread::spawn(move || {
@@ -198,63 +199,49 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
         c_thread.join().unwrap(),
         d_thread.join().unwrap());
 
-    let mut end = time::precise_time_s() - start;
+    let end = time::precise_time_s() - start;
     println!("Rendering Time: {} Seconds", end);
-
-    start = time::precise_time_s();
 
     // Setup Piston Window and display image.
     // Sets the dimensions to be half of DIM
     // because we are supersampling the rendered ImageQuads
     // and averaging the results into an image resolution that is
     // half of DIM.
-    let mut window:PistonWindow = WindowSettings::new(
-        "RustRay @Author:Stewart Charles",
-        [HALFDIM as u32, HALFDIM as u32])
-        .exit_on_esc(true).build().unwrap();
 
-    let mut first = true;
+    let mut imgbuffer = ImageBuffer::new(HALFDIM as u32, HALFDIM as u32);
 
-    while let Some(e) = window.next() {
-        window.draw_2d(&e, |c,g| {
-            clear([1.0; 4], g);
-            for quad in quads.iter() {
-                /* Lambda that calculates that avg color of a pixel
-                   located at index in the Quadrant being worked on */
-                let avg_color = move |index| {
-                    let mut avg = Vec3::new(0.0,0.0,0.0);
-                    avg = avg + quad.img[index];
-                    avg = avg + quad.img[index + 1];
-                    avg = avg + quad.img[index + HALFDIM as usize];
-                    avg = avg + quad.img[index + HALFDIM as usize + 1];
-                    avg = avg / 4.0;
-                    avg
-                };
-                let mut index = 0;
-                // We wish to map pixels from the expanded image space
-                // to a reduced pixel space so we iterate over the
-                // reduced pixel space and collect samples from the expanded space
-                for y in (quad.ymin / 2) .. (quad.ymax / 2) {
-                    for x in (quad.xmin / 2) .. (quad.xmax / 2) {
-                        // Calculate the average from the expanded image space
-                        let color = avg_color(index);
-                        // Translate our index for the expanded space
-                        index += 2;
-                        // Render the final color to the appropriate Window Position
-                        rectangle([color.x, color.y, color.z, 1.0],
-                                  [x as f64, (HALFDIM - y) as f64, 1.0, 1.0],
-                                  c.transform, g);
-                    }
-                    // Translate index by the offset of the row size in the expanded space
-                    index += HALFDIM as usize;
-                }
+    for quad in quads.iter() {
+        let avg_color = move |index| {
+            let mut avg = Vec3::new(0.0,0.0,0.0);
+            avg = avg + quad.img[index];
+            avg = avg + quad.img[index + 1];
+            avg = avg + quad.img[index + HALFDIM as usize];
+            avg = avg + quad.img[index + HALFDIM as usize + 1];
+            avg = avg / 4.0;
+            avg
+        };
+        let mut index = 0;
+        // We wish to map pixels from the expanded image space
+        // to a reduced pixel space so we iterate over the
+        // reduced pixel space and collect samples from the expanded space
+        for y in (quad.ymin / 2) .. (quad.ymax / 2) {
+            for x in (quad.xmin / 2) .. (quad.xmax / 2) {
+                // Calculate the average from the expanded image space
+                let color = avg_color(index);
+                // Translate our index for the expanded space
+                index += 2;
+                // Render the final color to the appropriate Window Position
+                imgbuffer.put_pixel(
+                    x as u32, 
+                    y as u32, 
+                    image::Rgb([(color.x * 255f32) as u8, (color.y * 255f32) as u8, (color.z * 255f32) as u8]))
             }
-            if first {
-                end = time::precise_time_s() - start;
-                println!("Piston Window Draw Time: {} Seconds", end);
-                first = false;
-            }
-        });
+            // Translate index by the offset of the row size in the expanded space
+            index += HALFDIM as usize;
+        }
+
+        let ref mut fout = File::create("render.png").unwrap();
+        image::ImageRgb8(imgbuffer).save(fout, image::PNG).unwrap();
     }
 }
 

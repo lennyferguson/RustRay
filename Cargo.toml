@@ -4,6 +4,6 @@ version = "0.5.0"
 authors = ["Stewart Charles <trio.of.four@gmail.com>"]
 
 [dependencies]
-piston_window = "0.61.0"
+image = "0.18.0"
 nalgebra = "0.5.1"
 time = "0.1"
