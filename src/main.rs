@@ -6,7 +6,6 @@
 extern crate nalgebra as na;
 extern crate piston_window;
 extern crate time;
-//extern crate getopts;
 
 use na::{Vec3,Norm};
 use std::env;
@@ -14,7 +13,6 @@ use std::str::FromStr;
 use std::thread;
 use std::sync::{Arc};
 use piston_window::*;
-//use getopts::{optopt,optflag,getopts,OptGroup};
 
 const MAX_DEPTH:i32 = 5;
 const NEAR:f32 = 1.2;
@@ -56,22 +54,13 @@ fn main() {
         .collect();
 
     //Begining work setting up getopts argument inputs
-    /*
-    let opts = [
-    optopt("e", "eye","Sets the Camera Origin (i.e. the Eye)", "EYE"),
-    optopt("a", "at", "Sets the position of what the camera looks AT", "AT"),
-    optopt("d", "dim", "Set the Output Window X & Y dim. Allows range of [100:4000]", "DIM"),
-    optopt("t", "thread", "Set # of Child Threads. Allows range of [1 : 16]", "THREAD"),
-    optopt("h", "help", "Print RustRay opts", "HELP"),
-    ];*/
-
-    match args.as_slice() {
-        &[cx,cy,cz,lx,ly,lz] => {
-            eye = Vec3::new(cx, cy, cz);
-            look = Vec3::new(lx,ly,lz);
+    match args.len() {
+        6 => {
+            eye = Vec3::new(args[0], args[1], args[2]);
+            look = Vec3::new(args[3],args[4],args[5]);
         }
-        &[cx,cy,cz] => {
-            eye = Vec3::new(cx,cy,cz);
+        3 => {
+            eye = Vec3::new(args[0],args[1],args[2]);
         }
         _ => { /* Use Default EYE and LOOK parameters */  }
     }
