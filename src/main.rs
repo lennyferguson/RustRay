@@ -48,7 +48,12 @@ fn main() {
     let mut eye = Vec3::new(3.0f32,2.5f32,5.0f32);
     let mut look = Vec3::new(1.0f32, 1.0f32, 3.0f32);
 
-    let args:Vec<String> = env::args().collect();
+    let args:Vec<f32> = env::args()
+        .map(|arg| f32::from_str(&arg))
+        .flat_map(|r| match r {
+            Ok(v) => vec!(v).into_iter(),
+            _     => vec!().into_iter() })
+        .collect();
 
     //Begining work setting up getopts argument inputs
     /*
@@ -60,28 +65,15 @@ fn main() {
     optopt("h", "help", "Print RustRay opts", "HELP"),
     ];*/
 
-    let mut unwrap:Vec<f32> = Vec::new();
-    let mut error = false;
-    for x in 1..args.len() {
-        let parse = f32::from_str(&args[x]);
-        match parse {
-            Ok(num) => unwrap.push(num),
-            Err(e) => {
-                println!("Error Parsing Arg[{}] = '{}' , Err = '{}'", x , args[x], e );
-                error = true; },
+    match args.as_slice() {
+        &[cx,cy,cz,lx,ly,lz] => {
+            eye = Vec3::new(cx, cy, cz);
+            look = Vec3::new(lx,ly,lz);
         }
-    }
-    if !error {
-        match unwrap.len() {
-            6 => {
-                eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
-                look = Vec3::new(unwrap[3], unwrap[4], unwrap[5]);
-            }
-            3 => {
-                eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
-            }
-            _ => { /* Use Default EYE and LOOK parameters */  }
+        &[cx,cy,cz] => {
+            eye = Vec3::new(cx,cy,cz);
         }
+        _ => { /* Use Default EYE and LOOK parameters */  }
     }
     render(eye, look);
 }
