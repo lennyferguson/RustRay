@@ -27,7 +27,7 @@ const EPSILON:f32 = 1.0 / 10000.0;
 
 // Current version of program super-samples to reduce aliasing
 // so the effective DIM of the final image will be DIM / 2
-const DIM:i32 = 2400;
+const DIM:i32 = 2000;
 const HALFDIM:i32 = DIM / 2;
 const T0:f32 = 0.0;
 const T1:f32 = 100000.0;
@@ -57,7 +57,7 @@ fn main() {
     let mut look = Vec3::new(1.75f32, 0.25f32, 2.75f32);
     let d = 3.875f32;
     let h = 0.85f32;
-    let time = 150;
+    let time = 300;
     let args:Vec<String> = env::args().collect();
     let max = 2.0f32 * std::f32::consts::PI;
 
@@ -116,9 +116,9 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) -> image::DynamicImage {
        Structs that impl Surface to properly store them */
 
     // Setup Materials
-    let blue = Material{amb:Vec3::new(0.0,0.0,1.0), reflect:0.0};
-    let green = Material{amb:Vec3::new(0.0,1.0,0.0), reflect:0.35};
-    let red = Material{amb:Vec3::new(1.0,0.0,0.0), reflect:0.0};
+    let blue = Material{amb:Vec3::new(0.1,0.1,0.85), reflect:0.0};
+    let green = Material{amb:Vec3::new(0.1,0.85,0.1), reflect:0.35};
+    let red = Material{amb:Vec3::new(0.85,0.1,0.1), reflect:0.0};
     let mirror = Material{amb:Vec3::new(0.15,0.15,0.15), reflect:0.9};
     let floor_mat = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.085};
     let brass = Material{amb:Vec3::new(0.329412, 0.223529, 0.027451), reflect:0.0};
@@ -477,7 +477,7 @@ impl Surface for Sphere {
         let negative_dir = ray.dir * -1.0;
         let h = light_dir + negative_dir;
         max = largest_of(na::dot(&normal, &h));
-        max.powf(1.5);
+        max.powf(1.2);
         mat = mat + Vec3::new(0.35f32,0.35f32,0.35f32) * max;
 
         mat = mat * (1.0f32 - in_shadow) * 0.5;
