@@ -7,4 +7,6 @@ authors = ["Stewart Charles <trio.of.four@gmail.com>"]
 image = "0.17.0"
 nalgebra = "0.5.1"
 time = "0.1"
-rand = "0.4.2"
+rand = "0.4"
+rayon = "1.0.1"
+lazy_static = "1.0"

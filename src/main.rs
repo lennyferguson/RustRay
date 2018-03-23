@@ -6,6 +6,8 @@
 extern crate nalgebra as na;
 extern crate image;
 extern crate time;
+extern crate rand;
+extern crate rayon;
 //extern crate getopts;
 
 use na::{Vec3,Norm};
@@ -15,6 +17,8 @@ use std::thread;
 use std::sync::{Arc};
 use image::ImageBuffer;
 use std::fs::File;
+use rand::distributions::{Range,Sample};
+use rayon::prelude::*;
 //use getopts::{optopt,optflag,getopts,OptGroup};
 
 const MAX_DEPTH:i32 = 5;
@@ -23,7 +27,7 @@ const EPSILON:f32 = 1.0 / 10000.0;
 
 // Current version of program super-samples to reduce aliasing
 // so the effective DIM of the final image will be DIM / 2
-const DIM:i32 = 1600;
+const DIM:i32 = 2400;
 const HALFDIM:i32 = DIM / 2;
 const T0:f32 = 0.0;
 const T1:f32 = 100000.0;
@@ -31,7 +35,9 @@ const FLIP:usize = (HALFDIM - 1) as usize;
 
 const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:Vec3<f32> = Vec3{x:0.0f32,y:1.0f32,z:0.0f32};
-const LIGHT_POS:Vec3<f32> = Vec3{x:25.0f32,y:25.0f32,z:-10.0f32};
+const LIGHT_POS:Vec3<f32> = Vec3{x:18.0f32,y:16.0f32,z:-45.0f32};
+const LIGHT_RADIUS:f32 = 8.0f32;
+const SHADOW_SAMPLES:i32 = 50;
 
 /* Type Definition of Arc container of Vector of Boxes containing Surface Structs.
    This type is used throughout the program and is quite verbose, so we will redefine
@@ -48,21 +54,12 @@ fn main() {
     // Retrieve EYE and LOOKAT positions from commandline args
     // if they exist. Otherwise, default to initial values
     //let mut eye = Vec3::new(3.0f32,2.5f32,5.0f32);
-    let mut look = Vec3::new(2.0f32, 0.6f32, 3.0f32);
-    let d = 3.0;
-    let h = 1.0f32;
-    let time = 90;
+    let mut look = Vec3::new(1.75f32, 0.25f32, 2.75f32);
+    let d = 3.875f32;
+    let h = 0.85f32;
+    let time = 150;
     let args:Vec<String> = env::args().collect();
     let max = 2.0f32 * std::f32::consts::PI;
-    //Begining work setting up getopts argument inputs
-    /*
-    let opts = [surface
-    optopt("e", "eye","Sets the Camera Origin (i.e. the Eye)", "EYE"),
-    optopt("a", "at", "Sets the position of what the camera looks AT", "AT"),
-    optopt("d", "dim", "Set the Output Window X & Y dim. Allows range of [100:4000]", "DIM"),
-    optopt("t", "thread", "Set # of Child Threads. Allows range of [1 : 16]", "THREAD"),
-    optopt("h", "help", "Print RustRay opts", "HELP"),
-    ];*/
 
     /*
     let mut unwrap:Vec<f32> = Vec::new();
@@ -102,6 +99,15 @@ fn main() {
     }
 
 }
+
+fn calculate_viewray(x:i32, y:i32, view_ray:ViewRay) -> Ray {
+        let us = -1.0 + view_ray.img_dim * ((x as f32) + 0.5);
+        let vs = -1.0 + view_ray.img_dim * ((y as f32) + 0.5);
+        let mut s = view_ray.eye + view_ray.u * us;
+        s = s + view_ray.v * vs;
+        s = s + view_ray.w * NEAR;
+        Ray{src:view_ray.eye, dir:(s - view_ray.eye).normalize()} // -> Return Ray
+    }
 
 fn render(eye:Vec3<f32>, look:Vec3<f32>) -> image::DynamicImage {
     /* Begin Render Loop for Image
@@ -178,35 +184,22 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) -> image::DynamicImage {
 
     let img_dim = 2.0 / (DIM as f32);
 
-    let calculate_viewray = move |x, y| {
-        let us = -1.0 + img_dim * ((x as f32) + 0.5);
-        let vs = -1.0 + img_dim * ((y as f32) + 0.5);
-        let mut s = eye + u * us;
-        s = s + v * vs;
-        s = s + w * NEAR;
-        Ray{src:eye, dir:(s - eye).normalize()} // -> Return Ray
-    };
-
-    let lambda = Arc::new(calculate_viewray);
-    let lambda_a = lambda.clone();
-    let lambda_b = lambda.clone();
-    let lambda_c = lambda.clone();
-    let lambda_d = lambda.clone();
+    let viewray_data = ViewRay{ img_dim: img_dim, eye: eye, u:u, v:v, w:w };
 
     let start = time::precise_time_s();
 
     // Run Threads that operate on disjoint image Quads
     let a_thread = thread::spawn(move || {
-        thread_render(s_a, lambda_a, 0, HALFDIM as i32, 0, HALFDIM as i32) });
+        thread_render(s_a, viewray_data, 0, HALFDIM as i32, 0, HALFDIM as i32) });
 
     let b_thread = thread::spawn(move || {
-        thread_render(s_b, lambda_b, HALFDIM as i32, DIM, 0, HALFDIM as i32) });
+        thread_render(s_b, viewray_data, HALFDIM as i32, DIM, 0, HALFDIM as i32) });
 
     let c_thread = thread::spawn(move || {
-        thread_render(s_c, lambda_c, 0, HALFDIM as i32, HALFDIM as i32, DIM + 1) });
+        thread_render(s_c, viewray_data, 0, HALFDIM as i32, HALFDIM as i32, DIM + 1) });
 
     let d_thread = thread::spawn(move || {
-        thread_render(s_d, lambda_d, HALFDIM as i32, DIM, HALFDIM as i32, DIM + 1) });
+        thread_render(s_d, viewray_data, HALFDIM as i32, DIM, HALFDIM as i32, DIM + 1) });
 
     // Join Threads before displaying Image
     let quads = vec!(
@@ -252,18 +245,24 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) -> image::DynamicImage {
 
 /* This function will be used by a thread to Generate a section of the
    image being drawn. */
-fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Surfaces, viewray_lambda:Arc<F>,
+fn thread_render(surfaces:Surfaces, viewray_data:ViewRay,
     xmin:i32, xmax:i32, ymin:i32, ymax:i32) -> ImageQuad {
 
     let mut image = ImageQuad::new(xmin, xmax, ymin, ymax);
     // Iterate through the the pixels in our Image Plane
+    let mut v = Vec::new();
     for y in ymin .. ymax {
         for x in xmin .. xmax {
+            v.push((x,y));
+        }
+    }
+    image.img = v.par_iter()
+        .map(|&(x,y)| {
             /* Generate the View Ray for 'this' pixel.
                Makes use of UVW basis vecs captured in the 'closure'
                of the lambda function No need for 'unsafe'
                static mut 'global' variables */
-            let view_ray = viewray_lambda(x,y);
+            let view_ray = calculate_viewray(x,y,viewray_data);
 
             // For each Surface, test for intersection with View Ray
             // Track surface nearest to Viewer with near_t scalar
@@ -282,34 +281,42 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Surfaces, viewray_lambda:Arc<F>,
                     None => { }
                 }
             }
-
-            // If we have a surface at this point, it is a surface that is nearest to the Eye
-            // and can now be used to calculate a color. Otherwise, we push the bkg_color
-            image.img.push(
-                match near_surf {
-                    Some(surf) => {
-                        surf.calculate_color(&view_ray, &surfaces, near_t, MAX_DEPTH) }
-                    None => { BKG_COLOR }
-                });
-        }
-    }
-    image
+            match near_surf {
+                Some(surf) => {
+                    surf.calculate_color(&view_ray, &surfaces, near_t, MAX_DEPTH) }
+                None => { BKG_COLOR }
+            }
+        })
+        .collect();
+        image
 }
 
 /// For the given point, calculates if the point is shaded
 /// and returns true if in shadow, false otherwise.
 /// Requires access the Vec containing the scenes Surfaces.
-fn shadow(point:Vec3<f32>, surfaces:&Surfaces) -> bool {
-    let light_dir = (LIGHT_POS - point).normalize();
-    let light_ray = Ray{src:point, dir:light_dir};
-    for s in surfaces.iter() {
-        let test = s.hit(&light_ray);
-        match test {
-            Some(_) => { return true; /* Exit immediately */ }
-            None => { /* Ignore */ }
+fn shadow(point:Vec3<f32>, surfaces:&Surfaces) -> f32 {
+    let mut count = 0;
+    let mut rng = rand::thread_rng();
+    let mut range = Range::new(-LIGHT_RADIUS, LIGHT_RADIUS);
+    for _ in 0 .. SHADOW_SAMPLES {
+        let light_loc = Vec3::new(
+            LIGHT_POS.x + range.sample(&mut rng),
+            LIGHT_POS.y + range.sample(&mut rng),
+            LIGHT_POS.z + range.sample(&mut rng));
+        let light_dir = (light_loc - point).normalize();
+        let light_ray = Ray{src:point, dir:light_dir};
+        for s in surfaces.iter() {
+            let test = s.hit(&light_ray);
+            match test {
+                Some(_) => { 
+                    count += 1; 
+                    break;
+                }
+                None => { /* Ignore */ }
+            }
         }
     }
-    false
+    (count as f32) / (SHADOW_SAMPLES as f32)
 }
 
 /// Casts a Reflection ray from the 'Point' in a direction that is calculated from the incoming
@@ -392,6 +399,15 @@ trait Surface: Sync + Send {
 }
 
 #[derive(Copy,Clone)]
+struct ViewRay {
+    img_dim:f32,
+    eye:Vec3<f32>,
+    u:Vec3<f32>,
+    v:Vec3<f32>,
+    w:Vec3<f32>
+}
+
+#[derive(Copy,Clone)]
 struct Sphere {
     center:Vec3<f32>,
     radius_sqr:f32,
@@ -464,9 +480,10 @@ impl Surface for Sphere {
         max.powf(1.5);
         mat = mat + Vec3::new(0.35f32,0.35f32,0.35f32) * max;
 
+        mat = mat * (1.0f32 - in_shadow) * 0.5;
         // Apply Shadow if necessary
-        if in_shadow { mat = mat * 0.2; }
-        else { mat = mat * 0.5 ; }
+        // if in_shadow { mat = mat * 0.2; }
+        // else { mat = mat * 0.5 ; }
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
@@ -606,8 +623,9 @@ impl Surface for Triangle {
         mat = mat + Vec3::new(0.3f32,0.3f32,0.3f32) * max;
 
         // Apply Shadow if necessary
-        mat = if in_shadow { mat * 0.2 }
-        else { mat * 0.5 };
+        mat = mat * 0.5 * (1.0f32 - in_shadow);
+        // mat = if in_shadow { mat * 0.2 }
+        // else { mat * 0.5 };
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
