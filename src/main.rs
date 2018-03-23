@@ -18,7 +18,7 @@ use std::fs::File;
 //use getopts::{optopt,optflag,getopts,OptGroup};
 
 const MAX_DEPTH:i32 = 5;
-const NEAR:f32 = 1.2;
+const NEAR:f32 = 1.0;
 const EPSILON:f32 = 1.0 / 10000.0;
 
 // Current version of program super-samples to reduce aliasing
@@ -27,6 +27,7 @@ const DIM:i32 = 1600;
 const HALFDIM:i32 = DIM / 2;
 const T0:f32 = 0.0;
 const T1:f32 = 100000.0;
+const FLIP:usize = (HALFDIM - 1) as usize;
 
 const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:Vec3<f32> = Vec3{x:0.0f32,y:1.0f32,z:0.0f32};
@@ -46,11 +47,13 @@ fn main() {
 
     // Retrieve EYE and LOOKAT positions from commandline args
     // if they exist. Otherwise, default to initial values
-    let mut eye = Vec3::new(3.0f32,2.5f32,5.0f32);
-    let mut look = Vec3::new(1.0f32, 1.0f32, 3.0f32);
-
+    //let mut eye = Vec3::new(3.0f32,2.5f32,5.0f32);
+    let mut look = Vec3::new(2.0f32, 0.6f32, 3.0f32);
+    let d = 3.0;
+    let h = 1.0f32;
+    let time = 90;
     let args:Vec<String> = env::args().collect();
-
+    let max = 2.0f32 * std::f32::consts::PI;
     //Begining work setting up getopts argument inputs
     /*
     let opts = [surface
@@ -61,6 +64,7 @@ fn main() {
     optopt("h", "help", "Print RustRay opts", "HELP"),
     ];*/
 
+    /*
     let mut unwrap:Vec<f32> = Vec::new();
     let mut error = false;
     for x in 1..args.len() {
@@ -84,10 +88,22 @@ fn main() {
             _ => { /* Use Default EYE and LOOK parameters */  }
         }
     }
-    render(eye, look);
+    */
+    let init = Vec3::new(look.x, 0.0f32, look.z);
+    for dt in 0 .. time {
+        let theta = (dt as f32) * (max / (time as f32));
+        let x = theta.sin() * d;
+        let z = theta.cos() * d;
+        let eye =  init + Vec3::new(x,h,z);
+        
+        // Save the image buffer to a file
+        let ref mut fout = File::create(format!("render{:04}.png", dt)).unwrap();
+        render(eye,look).save(fout, image::PNG).unwrap();
+    }
+
 }
 
-fn render(eye:Vec3<f32>, look:Vec3<f32>) {
+fn render(eye:Vec3<f32>, look:Vec3<f32>) -> image::DynamicImage {
     /* Begin Render Loop for Image
        Init Vec containing Surfaces
        Surface is a trait, which means that we must Box the
@@ -202,23 +218,17 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
     let end = time::precise_time_s() - start;
     println!("Rendering Time: {} Seconds", end);
 
-    // Setup Piston Window and display image.
-    // Sets the dimensions to be half of DIM
-    // because we are supersampling the rendered ImageQuads
-    // and averaging the results into an image resolution that is
-    // half of DIM.
-
-    let mut imgbuffer = ImageBuffer::new(HALFDIM as u32, HALFDIM as u32);
-
+   // Combine each of the image quadrants into a single image while also scaling the image to half size.
+    let mut ans = vec![vec![Vec3::new(0f32,0f32,0f32); HALFDIM as usize]; HALFDIM as usize];
     for quad in quads.iter() {
         let avg_color = move |index| {
-            let mut avg = Vec3::new(0.0,0.0,0.0);
-            avg = avg + quad.img[index];
-            avg = avg + quad.img[index + 1];
-            avg = avg + quad.img[index + HALFDIM as usize];
-            avg = avg + quad.img[index + HALFDIM as usize + 1];
-            avg = avg / 4.0;
-            avg
+                let mut avg = Vec3::new(0.0,0.0,0.0);
+                avg = avg + quad.img[index];
+                avg = avg + quad.img[index + 1];
+                avg = avg + quad.img[index + HALFDIM as usize];
+                avg = avg + quad.img[index + HALFDIM as usize + 1];
+                avg = avg / 4.0;
+                avg
         };
         let mut index = 0;
         // We wish to map pixels from the expanded image space
@@ -226,23 +236,18 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) {
         // reduced pixel space and collect samples from the expanded space
         for y in (quad.ymin / 2) .. (quad.ymax / 2) {
             for x in (quad.xmin / 2) .. (quad.xmax / 2) {
-                // Calculate the average from the expanded image space
-                let color = avg_color(index);
-                // Translate our index for the expanded space
+                ans[x as usize][y as usize] = avg_color(index);
                 index += 2;
-                // Render the final color to the appropriate Window Position
-                imgbuffer.put_pixel(
-                    x as u32, 
-                    y as u32, 
-                    image::Rgb([(color.x * 255f32) as u8, (color.y * 255f32) as u8, (color.z * 255f32) as u8]))
             }
             // Translate index by the offset of the row size in the expanded space
             index += HALFDIM as usize;
         }
-
-        let ref mut fout = File::create("render.png").unwrap();
-        image::ImageRgb8(imgbuffer).save(fout, image::PNG).unwrap();
     }
+    // Create an image buffer from the pixel vector
+    let buf = ImageBuffer::from_fn(HALFDIM as u32, HALFDIM as u32, |x,y| {
+        let color = ans[x as usize][FLIP - y as usize];
+        image::Rgb([(color.x * 255f32) as u8, (color.y * 255f32) as u8, (color.z * 255f32) as u8]) });
+    image::ImageRgb8(buf)
 }
 
 /* This function will be used by a thread to Generate a section of the
