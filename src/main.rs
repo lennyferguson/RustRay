@@ -27,7 +27,7 @@ const EPSILON:f32 = 1.0 / 10000.0;
 
 // Current version of program super-samples to reduce aliasing
 // so the effective DIM of the final image will be DIM / 2
-const DIM:i32 = 2400;
+const DIM:i32 = 1000;
 const HALFDIM:i32 = DIM / 2;
 const T0:f32 = 0.0;
 const T1:f32 = 100000.0;
@@ -54,10 +54,10 @@ fn main() {
     // Retrieve EYE and LOOKAT positions from commandline args
     // if they exist. Otherwise, default to initial values
     //let mut eye = Vec3::new(3.0f32,2.5f32,5.0f32);
-    let mut look = Vec3::new(1.75f32, 0.25f32, 2.75f32);
+    let mut look = Vec3::new(3.5, 1.25f32, 3.5f32);
     let d = 3.875f32;
-    let h = 0.85f32;
-    let time = 150;
+    let h = 1.5f32;
+    let time = 90;
     let args:Vec<String> = env::args().collect();
     let max = 2.0f32 * std::f32::consts::PI;
 
@@ -86,13 +86,13 @@ fn main() {
         }
     }
     */
-    let init = Vec3::new(look.x, 0.0f32, look.z);
+    let init = Vec3::new(look.x - 5f32, h, look.z - d);
+    let dz = ((2.0f32 * d) / (time as f32));
+    let mut z = 0f32;
     for dt in 0 .. time {
-        let theta = (dt as f32) * (max / (time as f32));
-        let x = theta.sin() * d;
-        let z = theta.cos() * d;
-        let eye =  init + Vec3::new(x,h,z);
-        
+        //let z = theta.cos() * d;
+        let eye =  init + Vec3::new(0f32,0f32,z);
+        z += dz;
         // Save the image buffer to a file
         let ref mut fout = File::create(format!("render{:04}.png", dt)).unwrap();
         render(eye,look).save(fout, image::PNG).unwrap();
@@ -116,9 +116,9 @@ fn render(eye:Vec3<f32>, look:Vec3<f32>) -> image::DynamicImage {
        Structs that impl Surface to properly store them */
 
     // Setup Materials
-    let blue = Material{amb:Vec3::new(0.0,0.0,1.0), reflect:0.0};
-    let green = Material{amb:Vec3::new(0.0,1.0,0.0), reflect:0.35};
-    let red = Material{amb:Vec3::new(1.0,0.0,0.0), reflect:0.0};
+    let blue = Material{amb:Vec3::new(0.1,0.1,0.75), reflect:0.0};
+    let green = Material{amb:Vec3::new(0.1,0.75,0.1), reflect:0.35};
+    let red = Material{amb:Vec3::new(0.75,0.1,0.1), reflect:0.0};
     let mirror = Material{amb:Vec3::new(0.15,0.15,0.15), reflect:0.9};
     let floor_mat = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.085};
     let brass = Material{amb:Vec3::new(0.329412, 0.223529, 0.027451), reflect:0.0};
@@ -477,7 +477,7 @@ impl Surface for Sphere {
         let negative_dir = ray.dir * -1.0;
         let h = light_dir + negative_dir;
         max = largest_of(na::dot(&normal, &h));
-        max.powf(1.5);
+        max.powf(1.2);
         mat = mat + Vec3::new(0.35f32,0.35f32,0.35f32) * max;
 
         mat = mat * (1.0f32 - in_shadow) * 0.5;
