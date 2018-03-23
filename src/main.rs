@@ -27,7 +27,7 @@ const EPSILON:f32 = 1.0 / 10000.0;
 
 // Current version of program super-samples to reduce aliasing
 // so the effective DIM of the final image will be DIM / 2
-const DIM:i32 = 1000;
+const DIM:i32 = 2400;
 const HALFDIM:i32 = DIM / 2;
 const T0:f32 = 0.0;
 const T1:f32 = 100000.0;
@@ -288,7 +288,7 @@ fn thread_render(surfaces:Surfaces, viewray_data:ViewRay,
             }
         })
         .collect();
-        image
+    image
 }
 
 /// For the given point, calculates if the point is shaded
