@@ -7,3 +7,4 @@ authors = ["Stewart Charles <trio.of.four@gmail.com>"]
 piston_window = "0.73.0"
 nalgebra = "0.5.1"
 time = "0.1"
+rand = "0.4"

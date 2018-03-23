@@ -6,6 +6,7 @@
 extern crate nalgebra as na;
 extern crate piston_window;
 extern crate time;
+extern crate rand;
 
 use na::{Vec3,Norm};
 use std::env;
@@ -13,6 +14,8 @@ use std::str::FromStr;
 use std::thread;
 use std::sync::{Arc};
 use piston_window::*;
+use rand::Rng;
+use rand::distributions::{Range,Sample};
 
 const MAX_DEPTH:i32 = 5;
 const NEAR:f32 = 1.2;
@@ -27,7 +30,9 @@ const T1:f32 = 100000.0;
 
 const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
 const UP:Vec3<f32> = Vec3{x:0.0f32,y:1.0f32,z:0.0f32};
-const LIGHT_POS:Vec3<f32> = Vec3{x:25.0f32,y:25.0f32,z:-10.0f32};
+const LIGHT_POS:Vec3<f32> = Vec3{x:50.0f32,y:50.0f32,z:-20.0f32};
+const LIGHT_RADIUS:f32 = 6.0f32;
+const SHADOW_SAMPLES:i32 = 50;
 
 /* Type Definition of Arc container of Vector of Boxes containing Surface Structs.
    This type is used throughout the program and is quite verbose, so we will redefine
@@ -288,17 +293,26 @@ fn thread_render<F:Fn(i32,i32)->Ray>(surfaces:Surfaces, viewray_lambda:Arc<F>,
 /// For the given point, calculates if the point is shaded
 /// and returns true if in shadow, false otherwise.
 /// Requires access the Vec containing the scenes Surfaces.
-fn shadow(point:Vec3<f32>, surfaces:&Surfaces) -> bool {
-    let light_dir = (LIGHT_POS - point).normalize();
-    let light_ray = Ray{src:point, dir:light_dir};
-    for s in surfaces.iter() {
-        let test = s.hit(&light_ray);
-        match test {
-            Some(_) => { return true; /* Exit immediately */ }
-            None => { /* Ignore */ }
+fn shadow(point:Vec3<f32>, surfaces:&Surfaces) -> f32 {
+    let mut count = 0;
+    let mut rng = rand::thread_rng();
+    let mut range = Range::new(-LIGHT_RADIUS, LIGHT_RADIUS);
+    for _ in 0 .. SHADOW_SAMPLES {
+        let light_loc = Vec3::new(
+            LIGHT_POS.x + range.sample(&mut rng), 
+            LIGHT_POS.y + range.sample(&mut rng), 
+            LIGHT_POS.z + range.sample(&mut rng));
+        let light_dir = (light_loc - point).normalize();
+        let light_ray = Ray{src:point, dir:light_dir};
+        for s in surfaces.iter() {
+            let test = s.hit(&light_ray);
+            match test {
+                Some(_) => { count += 1; }
+                None => { /* Ignore */ }
+            }
         }
     }
-    false
+    (count as f32) / (SHADOW_SAMPLES as f32)
 }
 
 /// Casts a Reflection ray from the 'Point' in a direction that is calculated from the incoming
@@ -454,8 +468,11 @@ impl Surface for Sphere {
         mat = mat + Vec3::new(0.35f32,0.35f32,0.35f32) * max;
 
         // Apply Shadow if necessary
-        if in_shadow { mat = mat * 0.2; }
-        else { mat = mat * 0.5 ; }
+
+        mat = mat * (1.0f32 - in_shadow) * 0.5;
+
+        //if in_shadow { mat = mat * 0.2; }
+        //else { mat = mat * 0.5 ; }
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
@@ -595,8 +612,8 @@ impl Surface for Triangle {
         mat = mat + Vec3::new(0.3f32,0.3f32,0.3f32) * max;
 
         // Apply Shadow if necessary
-        mat = if in_shadow { mat * 0.2 }
-        else { mat * 0.5 };
+        mat = mat * 0.5 * (1.0f32 - in_shadow);
+        //else { mat * 0.5 };
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0  {
