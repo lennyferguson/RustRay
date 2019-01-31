@@ -3,3 +3,4 @@ target/
 *.mp4
 *.mkv
 .DS_Store
+*/.vscode
