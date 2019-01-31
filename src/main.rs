@@ -23,7 +23,7 @@ use std::{fs::File, process::Command, thread};
 // Define various constants used throughout the program
 
 const MAX_DEPTH: i32 = 10;
-const NEAR: f32 = 3.0;
+const NEAR: f32 = 1.0;
 const EPSILON: f32 = 1.0 / 10000.0;
 
 // Current version of program super-samples to reduce aliasing
@@ -55,7 +55,7 @@ const GREEN: Material = Material {
         y: 0.85,
         z: 0.1,
     },
-    reflect: 0.35,
+    reflect: 0.675,
 };
 const RED: Material = Material {
     amb: Vec3 {
@@ -96,6 +96,9 @@ const BKG_COLOR: Vec3<f32> = Vec3 {
     y: 0.698f32,
     z: 1.0f32,
 };
+
+const SPHERE_RADIUS :f32 = 1.0f32;
+const SPHERE_LOCATION: Vec3<f32> = na::Vec3{x: 3.5, y: SPHERE_RADIUS, z: 3.5};
 
 // Define Vertices for various Surfaces
 const FLOOR_VERTS: [Vec3<f32>; 4] = [
@@ -179,7 +182,7 @@ lazy_static! {
         Sphere::boxed(Vec3::new(0.0,2.65,3.0), 0.50, RED),
 
         // Add Mirror Sphere
-        Sphere::boxed(Vec3::new(3.5,1.0,3.5),1.0, MIRROR),
+        Sphere::boxed(SPHERE_LOCATION, SPHERE_RADIUS, MIRROR),
 
         // Add floor with pattern value set to true
         Triangle::boxed(FLOOR_VERTS[0], FLOOR_VERTS[1], FLOOR_VERTS[2], FLOOR_MAT, true),
@@ -228,12 +231,10 @@ fn main() {
     // TODO: Parameterize animation properties from command line args
     // Retrieve EYE and LOOKAT positions from commandline args
     // if they exist. Otherwise, default to initial values
-    //let mut eye = Vec3::new(3.0f32,2.5f32,5.0f32);
-    let look = Vec3::new(2.5f32, 0.25f32, 2.5f32);
+    let look = SPHERE_LOCATION;
     let light = Vec3::new(-10f32, 15f32, -35.5f32);
-    //let mut eye = LIGHT_POS;
-    let d = 9.125f32;
-    let h = 5f32;
+    let d = SPHERE_RADIUS + 0.75f32;
+    let h = SPHERE_LOCATION.y - 0.25f32;
     let time = 300;
 
     let max = 2.0f32 * std::f32::consts::PI;
@@ -244,12 +245,12 @@ fn main() {
         let z = theta.cos() * d;
         let eye = init + Vec3::new(x, 0f32, z);
         // Save the image buffer to a file
-        // TODO: Use ffmpeg to create .mp4 or .gif
         let ref mut fout = File::create(format!("render{:04}.png", dt)).unwrap();
         render(eye, look, light).save(fout, image::PNG).unwrap();
     }
 
-    let ffmpeg_shell = "ffmpeg -framerate 60 -pattern_type glob -i '*.png' -c:v libx264 -pix_fmt yuv420p animation2.mp4";
+    // Export .png images to an animation [mp4 or mkv]
+    let ffmpeg_shell = "ffmpeg -framerate 60 -pattern_type glob -i '*.png' -c:v libx264 -preset veryslow -crf 0 movie.mkv";
     let make_movie = Command::new("sh")
         .arg("-c")
         .arg(ffmpeg_shell)
