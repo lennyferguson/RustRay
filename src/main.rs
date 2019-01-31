@@ -11,7 +11,7 @@ extern crate nalgebra as na;
 extern crate rand;
 extern crate rayon;
 extern crate time;
-//extern crate getopts;
+extern crate rand;
 
 use na::{Norm, Vec3};
 //use std::env;
@@ -22,7 +22,14 @@ use rayon::prelude::*;
 use std::fs::File;
 use std::process::Command;
 use std::thread;
+<<<<<<< HEAD
 // use getopts::{optopt,optflag,getopts,OptGroup};
+=======
+use std::sync::{Arc};
+use piston_window::*;
+use rand::Rng;
+use rand::distributions::{Range,Sample};
+>>>>>>> origin/master
 
 const MAX_DEPTH: i32 = 10;
 const NEAR: f32 = 3.0;
@@ -66,6 +73,7 @@ lazy_static! {
         Vec3::new(10.0,0.0,10.0),
         Vec3::new(10.0,0.0,-10.0) ];
 
+<<<<<<< HEAD
     static ref CUBE:[Vec3<f32>;8] = [
         Vec3::new(1.0,0.0,1.5),  // 0
         Vec3::new(1.0,0.0,0.5),  // 1
@@ -75,6 +83,13 @@ lazy_static! {
         Vec3::new(1.0,1.0,0.5),  // 5
         Vec3::new(2.0,1.0,0.5),  // 6
         Vec3::new(2.0,1.0,1.5)]; // 7
+=======
+const BKG_COLOR:Vec3<f32> = Vec3{x:0.4f32,y:0.698f32,z:1.0f32};
+const UP:Vec3<f32> = Vec3{x:0.0f32,y:1.0f32,z:0.0f32};
+const LIGHT_POS:Vec3<f32> = Vec3{x:50.0f32,y:50.0f32,z:-20.0f32};
+const LIGHT_RADIUS:f32 = 6.0f32;
+const SHADOW_SAMPLES:i32 = 50;
+>>>>>>> origin/master
 
     // -----Setup Surfaces-----
 
@@ -87,6 +102,7 @@ lazy_static! {
         // Add Mirror Sphere
         Sphere::boxed(Vec3::new(3.5,1.0,3.5),1.0, *MIRROR),
 
+<<<<<<< HEAD
         // Add floor with pattern value set to true
         Triangle::boxed(FLOOR_VERTS[0], FLOOR_VERTS[1], FLOOR_VERTS[2], *FLOOR_MAT, true),
         Triangle::boxed(FLOOR_VERTS[0], FLOOR_VERTS[2], FLOOR_VERTS[3], *FLOOR_MAT, true),
@@ -117,19 +133,25 @@ fn main() {
             Err(e) => {
                 println!("Error Parsing Arg[{}] = '{}' , Err = '{}'", x , args[x], e );
                 error = true; },
+=======
+    let args:Vec<f32> = env::args()
+        .map(|arg| f32::from_str(&arg))
+        .flat_map(|r| match r {
+            Ok(v) => vec!(v).into_iter(),
+            _     => vec!().into_iter() })
+        .collect();
+
+    //Begining work setting up getopts argument inputs
+    match args.len() {
+        6 => {
+            eye = Vec3::new(args[0], args[1], args[2]);
+            look = Vec3::new(args[3],args[4],args[5]);
+>>>>>>> origin/master
         }
-    }
-    if !error {
-        match unwrap.len() {
-            6 => {
-                eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
-                look = Vec3::new(unwrap[3], unwrap[4], unwrap[5]);
-            }
-            3 => {
-                eye = Vec3::new(unwrap[0], unwrap[1], unwrap[2]);
-            }
-            _ => { /* Use Default EYE and LOOK parameters */  }
+        3 => {
+            eye = Vec3::new(args[0],args[1],args[2]);
         }
+        _ => { /* Use Default EYE and LOOK parameters */  }
     }
     */
 
@@ -354,6 +376,7 @@ fn thread_render(
 /// For the given point, calculates if the point is shaded
 /// and returns true if in shadow, false otherwise.
 /// Requires access the Vec containing the scenes Surfaces.
+<<<<<<< HEAD
 fn shadow(point: Vec3<f32>, light_pos: Vec3<f32>) -> f32 {
     let mut count = 0;
     let mut rng = rand::thread_rng();
@@ -374,6 +397,24 @@ fn shadow(point: Vec3<f32>, light_pos: Vec3<f32>) -> f32 {
             if let Some(_) = s.hit(&light_ray) {
                 count += 1;
                 break;
+=======
+fn shadow(point:Vec3<f32>, surfaces:&Surfaces) -> f32 {
+    let mut count = 0;
+    let mut rng = rand::thread_rng();
+    let mut range = Range::new(-LIGHT_RADIUS, LIGHT_RADIUS);
+    for _ in 0 .. SHADOW_SAMPLES {
+        let light_loc = Vec3::new(
+            LIGHT_POS.x + range.sample(&mut rng), 
+            LIGHT_POS.y + range.sample(&mut rng), 
+            LIGHT_POS.z + range.sample(&mut rng));
+        let light_dir = (light_loc - point).normalize();
+        let light_ray = Ray{src:point, dir:light_dir};
+        for s in surfaces.iter() {
+            let test = s.hit(&light_ray);
+            match test {
+                Some(_) => { count += 1; }
+                None => { /* Ignore */ }
+>>>>>>> origin/master
             }
         }
     }
@@ -572,6 +613,14 @@ impl Surface for Sphere {
 
         mat = mat * (1.0f32 - in_shadow) * 0.5;
         // Apply Shadow if necessary
+<<<<<<< HEAD
+=======
+
+        mat = mat * (1.0f32 - in_shadow) * 0.5;
+
+        //if in_shadow { mat = mat * 0.2; }
+        //else { mat = mat * 0.5 ; }
+>>>>>>> origin/master
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0 {
@@ -734,6 +783,10 @@ impl Surface for Triangle {
 
         // Apply Shadow if necessary
         mat = mat * 0.5 * (1.0f32 - in_shadow);
+<<<<<<< HEAD
+=======
+        //else { mat * 0.5 };
+>>>>>>> origin/master
 
         // Cast Secondary Ray if Reflective index > 0.0
         if self.material.reflect > 0.0 {
