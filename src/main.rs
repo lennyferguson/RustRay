@@ -41,12 +41,54 @@ const UP: Vec3<f32> = Vec3 {
 };
 
 // Define Materials
-const BLUE: Material =      Material{amb:Vec3{x: 0.1,      y: 0.1,      z: 0.85},     reflect:0.0};
-const GREEN: Material =     Material{amb:Vec3{x: 0.1,      y: 0.85,     z: 0.1},      reflect:0.35};
-const RED: Material =       Material{amb:Vec3{x: 0.85,     y: 0.1,      z: 0.1},      reflect:0.0};
-const MIRROR: Material =    Material{amb:Vec3{x: 0.15,     y: 0.15,     z: 0.15},     reflect:0.9};
-const FLOOR_MAT: Material = Material{amb:Vec3{x: 0.25,     y: 0.56725,  z: 0.20725},  reflect:0.085};
-const BRASS: Material =     Material{amb:Vec3{x: 0.329412, y: 0.223529, z: 0.027451}, reflect:0.0};
+const BLUE: Material = Material {
+    amb: Vec3 {
+        x: 0.1,
+        y: 0.1,
+        z: 0.85,
+    },
+    reflect: 0.0,
+};
+const GREEN: Material = Material {
+    amb: Vec3 {
+        x: 0.1,
+        y: 0.85,
+        z: 0.1,
+    },
+    reflect: 0.35,
+};
+const RED: Material = Material {
+    amb: Vec3 {
+        x: 0.85,
+        y: 0.1,
+        z: 0.1,
+    },
+    reflect: 0.0,
+};
+const MIRROR: Material = Material {
+    amb: Vec3 {
+        x: 0.15,
+        y: 0.15,
+        z: 0.15,
+    },
+    reflect: 0.9,
+};
+const FLOOR_MAT: Material = Material {
+    amb: Vec3 {
+        x: 0.25,
+        y: 0.56725,
+        z: 0.20725,
+    },
+    reflect: 0.085,
+};
+const BRASS: Material = Material {
+    amb: Vec3 {
+        x: 0.329412,
+        y: 0.223529,
+        z: 0.027451,
+    },
+    reflect: 0.0,
+};
 
 // This is the default background color
 const BKG_COLOR: Vec3<f32> = Vec3 {
@@ -56,28 +98,78 @@ const BKG_COLOR: Vec3<f32> = Vec3 {
 };
 
 // Define Vertices for various Surfaces
-const FLOOR_VERTS:[Vec3<f32>;4] = [
-        Vec3{x: -10.0, y: 0.0, z: -10.0},
-        Vec3{x: -10.0, y: 0.0, z:  10.0},
-        Vec3{x:  10.0, y: 0.0, z:  10.0},
-        Vec3{x:  10.0, y: 0.0, z: -10.0} ];
+const FLOOR_VERTS: [Vec3<f32>; 4] = [
+    Vec3 {
+        x: -10.0,
+        y: 0.0,
+        z: -10.0,
+    },
+    Vec3 {
+        x: -10.0,
+        y: 0.0,
+        z: 10.0,
+    },
+    Vec3 {
+        x: 10.0,
+        y: 0.0,
+        z: 10.0,
+    },
+    Vec3 {
+        x: 10.0,
+        y: 0.0,
+        z: -10.0,
+    },
+];
 
-const CUBE:[Vec3<f32>;8] = [
-        Vec3{x: 1.0, y: 0.0, z: 1.5},  // 0
-        Vec3{x: 1.0, y: 0.0, z: 0.5},  // 1
-        Vec3{x: 2.0, y: 0.0, z: 0.5},  // 2
-        Vec3{x: 2.0, y: 0.0, z: 1.5},  // 3
-        Vec3{x: 1.0, y: 1.0, z: 1.5},  // 4
-        Vec3{x: 1.0, y: 1.0, z: 0.5},  // 5
-        Vec3{x: 2.0, y: 1.0, z: 0.5},  // 6
-        Vec3{x: 2.0, y: 1.0, z: 1.5}]; // 7
+const CUBE: [Vec3<f32>; 8] = [
+    Vec3 {
+        x: 1.0,
+        y: 0.0,
+        z: 1.5,
+    }, // 0
+    Vec3 {
+        x: 1.0,
+        y: 0.0,
+        z: 0.5,
+    }, // 1
+    Vec3 {
+        x: 2.0,
+        y: 0.0,
+        z: 0.5,
+    }, // 2
+    Vec3 {
+        x: 2.0,
+        y: 0.0,
+        z: 1.5,
+    }, // 3
+    Vec3 {
+        x: 1.0,
+        y: 1.0,
+        z: 1.5,
+    }, // 4
+    Vec3 {
+        x: 1.0,
+        y: 1.0,
+        z: 0.5,
+    }, // 5
+    Vec3 {
+        x: 2.0,
+        y: 1.0,
+        z: 0.5,
+    }, // 6
+    Vec3 {
+        x: 2.0,
+        y: 1.0,
+        z: 1.5,
+    },
+]; // 7
 
 //const LIGHT_POS:Vec3<f32> = Vec3{x:-25f32,y:40.0f32,z:-25f32};
 const LIGHT_RADIUS: f32 = 10f32;
 const SHADOW_SAMPLES: i32 = 50;
 
 // Initialize Values that are not compile time constants that are still
-// static relative to the scene / renderer 
+// static relative to the scene / renderer
 lazy_static! {
     // -----Setup Surfaces-----
     static ref SURFACES:Vec<Box<Surface>> = vec!(
