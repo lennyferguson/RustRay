@@ -5,7 +5,6 @@
 
 #[macro_use]
 extern crate lazy_static;
-
 extern crate image;
 extern crate nalgebra as na;
 extern crate rand;
@@ -18,10 +17,10 @@ use na::{Norm, Vec3};
 use image::ImageBuffer;
 use rand::distributions::{Range, Sample};
 use rayon::prelude::*;
-use std::fs::File;
-use std::process::Command;
-use std::thread;
+use std::{fs::File, process::Command, thread};
 // use getopts::{optopt,optflag,getopts,OptGroup};
+
+// Define various constants used throughout the program
 
 const MAX_DEPTH: i32 = 10;
 const NEAR: f32 = 3.0;
@@ -34,16 +33,45 @@ const HALFDIM: i32 = DIM / 2;
 const T0: f32 = 0.0;
 const T1: f32 = 100000.0;
 const FLIP: usize = (HALFDIM - 1) as usize;
-const BKG_COLOR: Vec3<f32> = Vec3 {
-    x: 0.4f32,
-    y: 0.698f32,
-    z: 1.0f32,
-};
+
 const UP: Vec3<f32> = Vec3 {
     x: 0.0f32,
     y: 1.0f32,
     z: 0.0f32,
 };
+
+// Define Materials
+const BLUE: Material =      Material{amb:Vec3{x: 0.1,      y: 0.1,      z: 0.85},     reflect:0.0};
+const GREEN: Material =     Material{amb:Vec3{x: 0.1,      y: 0.85,     z: 0.1},      reflect:0.35};
+const RED: Material =       Material{amb:Vec3{x: 0.85,     y: 0.1,      z: 0.1},      reflect:0.0};
+const MIRROR: Material =    Material{amb:Vec3{x: 0.15,     y: 0.15,     z: 0.15},     reflect:0.9};
+const FLOOR_MAT: Material = Material{amb:Vec3{x: 0.25,     y: 0.56725,  z: 0.20725},  reflect:0.085};
+const BRASS: Material =     Material{amb:Vec3{x: 0.329412, y: 0.223529, z: 0.027451}, reflect:0.0};
+
+// This is the default background color
+const BKG_COLOR: Vec3<f32> = Vec3 {
+    x: 0.4f32,
+    y: 0.698f32,
+    z: 1.0f32,
+};
+
+// Define Vertices for various Surfaces
+const FLOOR_VERTS:[Vec3<f32>;4] = [
+        Vec3{x: -10.0, y: 0.0, z: -10.0},
+        Vec3{x: -10.0, y: 0.0, z:  10.0},
+        Vec3{x:  10.0, y: 0.0, z:  10.0},
+        Vec3{x:  10.0, y: 0.0, z: -10.0} ];
+
+const CUBE:[Vec3<f32>;8] = [
+        Vec3{x: 1.0, y: 0.0, z: 1.5},  // 0
+        Vec3{x: 1.0, y: 0.0, z: 0.5},  // 1
+        Vec3{x: 2.0, y: 0.0, z: 0.5},  // 2
+        Vec3{x: 2.0, y: 0.0, z: 1.5},  // 3
+        Vec3{x: 1.0, y: 1.0, z: 1.5},  // 4
+        Vec3{x: 1.0, y: 1.0, z: 0.5},  // 5
+        Vec3{x: 2.0, y: 1.0, z: 0.5},  // 6
+        Vec3{x: 2.0, y: 1.0, z: 1.5}]; // 7
+
 //const LIGHT_POS:Vec3<f32> = Vec3{x:-25f32,y:40.0f32,z:-25f32};
 const LIGHT_RADIUS: f32 = 10f32;
 const SHADOW_SAMPLES: i32 = 50;
@@ -51,56 +79,31 @@ const SHADOW_SAMPLES: i32 = 50;
 // Initialize Values that are not compile time constants that are still
 // static relative to the scene / renderer 
 lazy_static! {
-    // Define Materials
-    static ref BLUE: Material =      Material{amb:Vec3::new(0.1,0.1,0.85), reflect:0.0};
-    static ref GREEN: Material =     Material{amb:Vec3::new(0.1,0.85,0.1), reflect:0.35};
-    static ref RED: Material =       Material{amb:Vec3::new(0.85,0.1,0.1), reflect:0.0};
-    static ref MIRROR: Material =    Material{amb:Vec3::new(0.15,0.15,0.15), reflect:0.9};
-    static ref FLOOR_MAT: Material = Material{amb:Vec3::new(0.25,0.56725, 0.20725), reflect:0.085};
-    static ref BRASS: Material =     Material{amb:Vec3::new(0.329412, 0.223529, 0.027451), reflect:0.0};
-
-    static ref FLOOR_VERTS:[Vec3<f32>;4] = [
-        Vec3::new(-10.0,0.0,-10.0),
-        Vec3::new(-10.0,0.0,10.0),
-        Vec3::new(10.0,0.0,10.0),
-        Vec3::new(10.0,0.0,-10.0) ];
-
-    static ref CUBE:[Vec3<f32>;8] = [
-        Vec3::new(1.0,0.0,1.5),  // 0
-        Vec3::new(1.0,0.0,0.5),  // 1
-        Vec3::new(2.0,0.0,0.5),  // 2
-        Vec3::new(2.0,0.0,1.5),  // 3
-        Vec3::new(1.0,1.0,1.5),  // 4
-        Vec3::new(1.0,1.0,0.5),  // 5
-        Vec3::new(2.0,1.0,0.5),  // 6
-        Vec3::new(2.0,1.0,1.5)]; // 7
-
     // -----Setup Surfaces-----
-
     static ref SURFACES:Vec<Box<Surface>> = vec!(
         // Add Snowman
-        Sphere::boxed(Vec3::new(0.0,0.5,3.0), 1.0, *BLUE),
-        Sphere::boxed(Vec3::new(0.0,1.85,3.0), 0.75, *GREEN),
-        Sphere::boxed(Vec3::new(0.0,2.65,3.0), 0.50, *RED),
+        Sphere::boxed(Vec3::new(0.0,0.5,3.0), 1.0, BLUE),
+        Sphere::boxed(Vec3::new(0.0,1.85,3.0), 0.75, GREEN),
+        Sphere::boxed(Vec3::new(0.0,2.65,3.0), 0.50, RED),
 
         // Add Mirror Sphere
-        Sphere::boxed(Vec3::new(3.5,1.0,3.5),1.0, *MIRROR),
+        Sphere::boxed(Vec3::new(3.5,1.0,3.5),1.0, MIRROR),
 
         // Add floor with pattern value set to true
-        Triangle::boxed(FLOOR_VERTS[0], FLOOR_VERTS[1], FLOOR_VERTS[2], *FLOOR_MAT, true),
-        Triangle::boxed(FLOOR_VERTS[0], FLOOR_VERTS[2], FLOOR_VERTS[3], *FLOOR_MAT, true),
+        Triangle::boxed(FLOOR_VERTS[0], FLOOR_VERTS[1], FLOOR_VERTS[2], FLOOR_MAT, true),
+        Triangle::boxed(FLOOR_VERTS[0], FLOOR_VERTS[2], FLOOR_VERTS[3], FLOOR_MAT, true),
 
         // Add brass cube triangles
-        Triangle::boxed(CUBE[0],CUBE[5],CUBE[1], *BRASS, false),
-        Triangle::boxed(CUBE[0],CUBE[4],CUBE[5], *BRASS, false),
-        Triangle::boxed(CUBE[0],CUBE[4],CUBE[3], *BRASS, false),
-        Triangle::boxed(CUBE[4],CUBE[7],CUBE[3], *BRASS, false),
-        Triangle::boxed(CUBE[4],CUBE[7],CUBE[5], *BRASS, false),
-        Triangle::boxed(CUBE[5],CUBE[7],CUBE[6], *BRASS, false),
-        Triangle::boxed(CUBE[5],CUBE[2],CUBE[6], *BRASS, false),
-        Triangle::boxed(CUBE[5],CUBE[1],CUBE[2], *BRASS, false),
-        Triangle::boxed(CUBE[6],CUBE[7],CUBE[3], *BRASS, false),
-        Triangle::boxed(CUBE[6],CUBE[3],CUBE[2], *BRASS, false)
+        Triangle::boxed(CUBE[0],CUBE[5],CUBE[1], BRASS, false),
+        Triangle::boxed(CUBE[0],CUBE[4],CUBE[5], BRASS, false),
+        Triangle::boxed(CUBE[0],CUBE[4],CUBE[3], BRASS, false),
+        Triangle::boxed(CUBE[4],CUBE[7],CUBE[3], BRASS, false),
+        Triangle::boxed(CUBE[4],CUBE[7],CUBE[5], BRASS, false),
+        Triangle::boxed(CUBE[5],CUBE[7],CUBE[6], BRASS, false),
+        Triangle::boxed(CUBE[5],CUBE[2],CUBE[6], BRASS, false),
+        Triangle::boxed(CUBE[5],CUBE[1],CUBE[2], BRASS, false),
+        Triangle::boxed(CUBE[6],CUBE[7],CUBE[3], BRASS, false),
+        Triangle::boxed(CUBE[6],CUBE[3],CUBE[2], BRASS, false)
     );
 }
 
@@ -649,7 +652,6 @@ impl Surface for Triangle {
         let g = self.a.z - self.b.z;
         let h = self.a.z - self.c.z;
         let i = ray.dir.z;
-
         let j = self.a.x - ray.src.x;
         let k = self.a.y - ray.src.y;
         let l = self.a.z - ray.src.z;
