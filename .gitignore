@@ -4,3 +4,4 @@ target/
 *.mkv
 .DS_Store
 */.vscode
+*.db
